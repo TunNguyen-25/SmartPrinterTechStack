@@ -1,6 +1,6 @@
 # Smart Printer Tech Stack Lab — Implementation Plan
 
-> **For agentic workers:** Use `superpowers:executing-plans` to implement task-by-task in this session after user review. Do not start product implementation during this planning turn.
+> **For agentic workers:** Dùng `superpowers:executing-plans`. Theo yêu cầu người dùng ngày 22/10/2026: chỉ thực hiện một task mỗi lượt, cập nhật plan rồi dừng để review; không tự chuyển sang task kế tiếp.
 
 **Goal:** Tạo app thử nghiệm các stack iOS theo ba tab Printer, Scan, File, ưu tiên native trước và so sánh một số thư viện sau.
 
@@ -44,15 +44,18 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 
 **Đợt 1: app đã mở được file thật.**
 
+**Trạng thái 22/10/2026:** Đã triển khai và pass kiểm thử tự động; dừng để người dùng review. Các kiểm tra thủ công chưa chạy được liệt kê riêng bên dưới.
+
 **Files:** AppTabBarController, SceneDelegate, Info.plist, project.pbxproj, LibraryDocument, DocumentStore, FilesViewController, ImportViewController, DocumentPreviewViewController; DocumentStoreTests và UI tests.
 
 **Interfaces:** `LibraryDocument: Identifiable, Sendable` gồm `id: UUID`, `url: URL`, `name: String`. `actor DocumentStore` cung cấp `importFile(at: URL, preferredName: String?, id: UUID = UUID()) throws -> LibraryDocument`, `list() throws -> [LibraryDocument]`, `rename(id: UUID, to: String) throws -> LibraryDocument`, `delete(id: UUID) throws`. Caller dùng `await`; mỗi tài liệu có UUID directory riêng. Initializer nhận `rootURL: URL` để test trong thư mục tạm. `id` mặc định mới cho import thông thường; inbox truyền ID ổn định, nếu ID đã có bản hoàn chỉnh thì trả bản đó, không ghi đè hoặc sinh duplicate.
 
-- [ ] Viết test import hai file trùng tên không ghi đè nhau; rename không cho path traversal; source không tồn tại không tạo record; lỗi ghi/hủy copy không xuất hiện file hoàn chỉnh trong list. Chạy test và xác nhận fail trước phần triển khai.
-- [ ] Thiết lập root 3 tab; bỏ Main storyboard references đồng bộ trong build settings và scene manifest, giữ LaunchScreen. Không đổi AppDelegate nếu không cần.
-- [ ] Làm kho Documents với staging + move sau thành công, list/rename/delete, thumbnail cache; import nhiều file/ảnh theo từng item và báo lỗi riêng. Copy URL từ item provider trước khi callback trả về; không nạp cả batch ảnh full-size vào RAM.
-- [ ] Preview PDF/ảnh và Quick Look cho loại khác khi được hỗ trợ; thêm share/export Files, tìm theo tên và sample offline.
-- [ ] Xác nhận test pass; UI test thấy đúng 3 tab, import fixture và mở lại app vẫn thấy file; manual cloud file chưa download, duplicate name, cancel và iPad popover. Đợt này chưa cần máy in.
+- [x] Viết test import hai file trùng tên không ghi đè nhau; rename không cho path traversal; source không tồn tại không tạo record; lỗi ghi/hủy copy không xuất hiện file hoàn chỉnh trong list. Chạy test và xác nhận fail trước phần triển khai.
+- [x] Thiết lập root 3 tab; bỏ Main storyboard references đồng bộ trong build settings và scene manifest, giữ LaunchScreen. Không đổi AppDelegate nếu không cần.
+- [x] Làm kho Documents với staging + move sau thành công, list/rename/delete, thumbnail cache; import nhiều file/ảnh theo từng item và báo lỗi riêng. Copy URL từ item provider trước khi callback trả về; không nạp cả batch ảnh full-size vào RAM.
+- [x] Preview PDF/ảnh và Quick Look cho loại khác khi được hỗ trợ; thêm share/export Files, tìm theo tên và sample offline.
+- [x] Xác nhận test pass; UI test thấy đúng 3 tab, nhập fixture, đổi tên, mở lại app vẫn thấy file; hủy Files/Photos picker, preview ảnh, share và hủy export. Kiểm tra share/export trên iPad simulator đã pass.
+- [ ] Kiểm tra thủ công còn lại (**Not run**): cloud file chưa download/offline, nhiều ảnh Photos thật, duplicate name qua provider thật, hủy giữa lúc provider tải/copy, thiếu dung lượng. Đợt này chưa cần máy in.
 
 ### Task 2 — Tìm printer và in native
 
@@ -148,6 +151,19 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 - [ ] Kiểm tra dark mode, Dynamic Type, VoiceOver labels, xoay iPad và popover anchors. Audit permission keys/availability/fallback đúng từng đường chạy.
 - [ ] Ghi bảng Pass/Fail/Blocked/Not run với OS/device, model printer, input và artifact kết quả; kết luận native đủ ở đâu và library nào đáng giữ. Không gọi “đã hỗ trợ” cho case chưa chạy.
 
-## Điểm dừng của lượt hiện tại
+## Tiến độ và điểm dừng
 
-Chỉ tạo tài liệu kế hoạch và thiết kế để người dùng review. Chưa thay mã ứng dụng, project settings, dependency, entitlement hay chạy build/test phần triển khai. Sau review, triển khai lần lượt các đợt trong cùng session; mỗi task phải có kết quả kiểm chứng trước khi báo xong.
+- **Task 1: hoàn tất triển khai và kiểm thử tự động, chờ review** — ba tab, DocumentStore, Files/Photos, preview, share/export và bộ mẫu offline. Các kiểm tra thủ công chưa chạy vẫn để unchecked; chưa chứng nhận các trường hợp đó.
+- **Task 2–8: chưa bắt đầu**. Dừng sau Task 1 để người dùng review.
+- Mã nằm trong working tree của `research/tech_stack`, chưa commit; không có thay đổi có sẵn khi bắt đầu lượt này.
+
+### Kiểm chứng Task 1
+
+- RED: suite 9 unit test kho file thất bại với 28 issue trước implementation; UI test fail do chưa có tab File. Test ảnh đúng hướng fail trước khi có downsample.
+- GREEN cuối: **13 unit test, 5 UI test và 4 lượt launch theo cấu hình giao diện** đều pass trong một lượt chạy toàn bộ suite trên **iPhone 17 Pro / iOS 26.4** (UUID `D6759AEC-CFFC-4FBF-BCA5-6E7EE4D82EC8`). Bao gồm kiểm tra dọn staging khi công bố file thất bại, giữ bản gốc và không ghi đè ID đã hoàn chỉnh.
+- **iPad Pro 13-inch (M5) / iOS 26.4** (UUID `6DFA6BB0-FED1-42E1-AD6D-1C2D0C4182FD`): hai smoke test preview ảnh/export-cancel và Quick Look text/share-copy-delete đã pass. UI test thích ứng với tab ở phía trên và kiểu accessibility của sheet hệ thống; production code dùng UIKit chuẩn.
+- Lệnh chạy toàn bộ suite: `xcodebuild test -project SmartPrinterTechStack/SmartPrinterTechStack.xcodeproj -scheme SmartPrinterTechStack -destination 'platform=iOS Simulator,id=D6759AEC-CFFC-4FBF-BCA5-6E7EE4D82EC8' -derivedDataPath /tmp/smart-printer-lab-derived -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO`.
+- Kết quả cuối: `TEST SUCCEEDED`, exit 0; artifact: `/tmp/smart-printer-lab-derived/Logs/Test/Test-SmartPrinterTechStack-2026.10.22_11-06-06-+0700.xcresult`. Log và ledger ở `.superpowers/sdd/2026-10-22-smart-printer-lab/` (local, git-ignored).
+- `plutil -lint` cho Info.plist/project.pbxproj và `git diff --check` đã pass.
+- App target vẫn iOS 15.0; unit-test target giữ iOS 26.4. AppDelegate, research, dependencies và entitlements không đổi.
+- Chưa kiểm chứng trên thiết bị thật: file cloud chưa download/offline, nhập nhiều ảnh Photos thật, hủy trong lúc provider tải/copy, thiếu dung lượng; chưa có runtime iOS 15 để kiểm tra baseline.
