@@ -101,6 +101,40 @@ final class SmartPrinterTechStackUITests: XCTestCase {
     }
 
     @MainActor
+    func testImageShareCanSaveToPhotos() throws {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons.matching(identifier: "File").firstMatch.tap()
+        app.buttons["importDocuments"].tap()
+        app.buttons["sampleImage"].tap()
+        XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10))
+        app.buttons["finishImport"].tap()
+        let row = app.cells.containing(.staticText, identifier: "Sample.png").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        XCTAssertTrue(app.images["Sample.png"].waitForExistence(timeout: 10))
+        app.buttons["documentActions"].tap()
+        app.buttons["Chia sẻ"].tap()
+        let save = app.descendants(matching: .any).matching(identifier: "Save Image").firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 10))
+        save.tap()
+        let permission = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if permission.waitForExistence(timeout: 3) {
+            let allow = permission.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] 'Allow'")).firstMatch
+            XCTAssertTrue(allow.exists, permission.debugDescription)
+            allow.tap()
+        }
+        let actions = app.buttons["documentActions"]
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: actions)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+        XCTAssertTrue(app.images["Sample.png"].exists)
+        actions.tap()
+        app.buttons["Xóa"].tap()
+        app.alerts.buttons["Xóa"].tap()
+        XCTAssertTrue(app.navigationBars["File"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testShareSheetOpensFromDocumentActions() throws {
         let app = XCUIApplication()
         app.launch()

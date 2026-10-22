@@ -155,7 +155,7 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 
 - **Task 1: hoàn tất triển khai và kiểm thử tự động, chờ review** — ba tab, DocumentStore, Files/Photos, preview, share/export và bộ mẫu offline. Các kiểm tra thủ công chưa chạy vẫn để unchecked; chưa chứng nhận các trường hợp đó.
 - **Task 2–8: chưa bắt đầu**. Dừng sau Task 1 để người dùng review.
-- Mã nằm trong working tree của `research/tech_stack`, chưa commit; không có thay đổi có sẵn khi bắt đầu lượt này.
+- Task 1 đã được ghi nhận ở commit `1c71360` trên `research/tech_stack`; phần bổ sung quyền Photos sau review đang ở working tree, chưa commit.
 
 ### Kiểm chứng Task 1
 
@@ -167,3 +167,19 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 - `plutil -lint` cho Info.plist/project.pbxproj và `git diff --check` đã pass.
 - App target vẫn iOS 15.0; unit-test target giữ iOS 26.4. AppDelegate, research, dependencies và entitlements không đổi.
 - Chưa kiểm chứng trên thiết bị thật: file cloud chưa download/offline, nhập nhiều ảnh Photos thật, hủy trong lúc provider tải/copy, thiếu dung lượng; chưa có runtime iOS 15 để kiểm tra baseline.
+
+### Bổ sung quyền sau review Task 1 — 22/10/2026
+
+Đã thêm `NSPhotoLibraryAddUsageDescription` cho luồng lưu ảnh từ share sheet. Test mới fail vì thiếu `Save Image` trước thay đổi; sau thay đổi đã thấy hộp thoại hệ thống và bấm `Allow` thành công. Toàn bộ suite sau bổ sung quyền pass: **13 unit test, 6 UI test và 4 lượt launch** trên iPhone 17 Pro / iOS 26.4 (`CODE_SIGNING_ALLOWED=NO`). `plutil -lint` và `git diff --check` pass. Chưa kiểm chứng trên thiết bị thật hoặc nhánh từ chối quyền. Task 2–8 vẫn chưa bắt đầu; dừng để review.
+
+| Luồng | Quyền / cấu hình | Thời điểm cấp quyền |
+|---|---|---|
+| Nhập Photos bằng PHPicker | Không cần `NSPhotoLibraryUsageDescription` hoặc request đọc cả thư viện | Picker chỉ trả các ảnh người dùng chọn; không chặn picker bằng PhotoKit authorization |
+| Lưu ảnh từ Chia sẻ → Save Image | `NSPhotoLibraryAddUsageDescription` với mục đích lưu ảnh người dùng chọn | Hoạt động lưu của hệ thống xử lý cấp quyền khi người dùng chọn lưu; không request khi mở app hoặc nhập ảnh |
+| Nhập/xuất Files | Không có quyền Files tổng quát cần khai báo/request trên iOS | Document picker cấp URL cho từng mục đã chọn; code giữ security scope, coordinated copy và ngừng scope sau copy |
+| Camera scan | `NSCameraUsageDescription` + kiểm tra/request camera | Bổ sung ở Task 4 khi người dùng bắt đầu scan; hiện chưa có luồng camera |
+| Bonjour discovery | `NSLocalNetworkUsageDescription` + `NSBonjourServices` | Bổ sung ở Task 7 khi bắt đầu discovery; hiện chưa chạy browser |
+
+Không bật `UIFileSharingEnabled` hoặc `LSSupportsOpeningDocumentsInPlace` để giả lập một quyền Files: các cờ này thay đổi cách truy cập tài liệu, không tạo prompt xin quyền.
+
+Căn cứ: [Apple — Photos picker](https://developer.apple.com/videos/play/wwdc2020/10652/), [Photo Library Additions Usage Description](https://developer.apple.com/documentation/bundleresources/information-property-list/nsphotolibraryaddusagedescription), [Document picker](https://developer.apple.com/documentation/uikit/uidocumentpickerviewcontroller).
