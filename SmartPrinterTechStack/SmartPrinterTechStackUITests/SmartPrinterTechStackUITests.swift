@@ -158,4 +158,47 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.alerts.buttons["Xóa"].tap()
         XCTAssertTrue(app.navigationBars["File"].waitForExistence(timeout: 5))
     }
+    @MainActor
+    func testPrinterPickerCanCancel() throws {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons.matching(identifier: "Printer").firstMatch.tap()
+        let choose = app.cells["choosePrinter"]
+        XCTAssertTrue(choose.waitForExistence(timeout: 5))
+        choose.tap()
+        let cancel = app.descendants(matching: .any).matching(identifier: "Cancel").firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10))
+        cancel.tap()
+        XCTAssertTrue(choose.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'Đã hủy chọn' ")).firstMatch.exists)
+    }
+
+    @MainActor
+    func testCalibrationReviewPrintSheetAndCancel() throws {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons.matching(identifier: "Printer").firstMatch.tap()
+        let calibration = app.cells["calibrationA4"]
+        XCTAssertTrue(calibration.waitForExistence(timeout: 5))
+        calibration.tap()
+        XCTAssertTrue(app.navigationBars["Calibration-A4.pdf"].waitForExistence(timeout: 10))
+        app.buttons["documentActions"].tap()
+        app.buttons["printDocument"].tap()
+        let cancel = app.buttons.matching(NSPredicate(format: "label == 'Close' OR label == 'Cancel'")).firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 10))
+        cancel.tap()
+        if app.alerts["Kết quả yêu cầu in"].waitForExistence(timeout: 3) {
+            app.alerts.buttons["Đóng"].tap()
+        }
+        XCTAssertTrue(app.buttons["documentActions"].waitForExistence(timeout: 5))
+        app.buttons["documentActions"].tap()
+        app.buttons["directPrint"].tap()
+        XCTAssertTrue(app.alerts["Không thể hoàn tất"].waitForExistence(timeout: 10))
+        app.alerts.buttons["Đóng"].tap()
+        app.buttons["documentActions"].tap()
+        app.buttons["Xóa"].tap()
+        app.alerts.buttons["Xóa"].tap()
+        XCTAssertTrue(app.navigationBars["Printer"].waitForExistence(timeout: 5))
+    }
+
 }

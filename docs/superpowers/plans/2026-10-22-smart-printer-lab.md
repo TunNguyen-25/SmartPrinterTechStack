@@ -61,14 +61,17 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 
 **Đợt 1 tiếp: file đã nhập in được qua hệ thống.**
 
+**Trạng thái 22/10/2026:** Đã triển khai và pass kiểm thử tự động; dừng để người dùng review. In trên máy AirPrint thật và bản giấy chưa được kiểm chứng.
+
 **Files:** PrinterViewController, PrintService, DocumentPreviewViewController, project test fixtures; PrintServiceTests.
 
 **Interfaces:** `@MainActor PrintService` cung cấp `choosePrinter(from: UIViewController)`, `presentPrint(document: LibraryDocument, from: UIViewController)`; lưu selected printer URL, contact lại trước khi hiển thị capability/in trực tiếp. UI gọi từ Printer và preview bằng cùng service.
 
-- [ ] Test kiểm tra nội dung PDF/ảnh hợp lệ được chuẩn bị, file hỏng và PDF cấm in bị từ chối trước present; nhiều ảnh giữ đúng thứ tự khi tạo một PDF. Xác nhận fail rồi triển khai.
-- [ ] Tích hợp picker, contact status, lưu/khôi phục URL, capability color/duplex; print sheet có preview, callback lỗi/hủy và anchor iPad.
-- [ ] Thêm hành động in trực tiếp riêng sau review file và trang calibration A4/Letter; không báo “đã in ra giấy” từ completion.
-- [ ] Test pass; manual printer online/offline, đổi printer, hủy, PDF nhiều trang, color/duplex theo máy. Ghi model/firmware/mạng và kết quả bản giấy; nếu không có phần cứng đánh dấu chưa kiểm chứng.
+- [x] Test kiểm tra nội dung PDF/ảnh hợp lệ được chuẩn bị, file hỏng và PDF cấm in bị từ chối trước present; nhiều ảnh giữ đúng thứ tự khi tạo một PDF. Xác nhận fail rồi triển khai.
+- [x] Tích hợp picker, contact status, lưu/khôi phục URL, capability color/duplex; print sheet có preview, callback lỗi/hủy và anchor iPad.
+- [x] Thêm hành động in trực tiếp riêng sau review file và trang calibration A4/Letter; không báo “đã in ra giấy” từ completion.
+- [x] Test tự động pass: chuẩn bị PDF/ảnh, chặn PDF khóa/cấm in, ghép ảnh đúng thứ tự/hướng, calibration A4/Letter; picker và print sheet/cancel trên iPhone/iPad; in trực tiếp khi chưa chọn máy báo lỗi. Suite hồi quy Task 1 vẫn pass.
+- [ ] Manual còn lại (**Not run**): printer online/offline, đổi printer thật, gửi lệnh in trực tiếp sau xác nhận, PDF nhiều trang, color/duplex và đo calibration trên giấy. Chưa có máy AirPrint để ghi model/firmware/mạng hoặc xác nhận bản giấy.
 
 ### Task 3 — Sửa PDF và ảnh native
 
@@ -154,8 +157,9 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 ## Tiến độ và điểm dừng
 
 - **Task 1: hoàn tất triển khai và kiểm thử tự động, chờ review** — ba tab, DocumentStore, Files/Photos, preview, share/export và bộ mẫu offline. Các kiểm tra thủ công chưa chạy vẫn để unchecked; chưa chứng nhận các trường hợp đó.
-- **Task 2–8: chưa bắt đầu**. Dừng sau Task 1 để người dùng review.
-- Task 1 đã được ghi nhận ở commit `1c71360` trên `research/tech_stack`; phần bổ sung quyền Photos sau review đang ở working tree, chưa commit.
+- **Task 2: hoàn tất triển khai và kiểm thử tự động, chờ review** — picker AirPrint, lưu URL/check capability, in từ preview dùng chung service, in trực tiếp có xác nhận, ghép ảnh và calibration A4/Letter. Các ca in thật vẫn Not run.
+- **Task 3–8: chưa bắt đầu**. Dừng sau Task 2 theo yêu cầu; không tự chuyển task.
+- Task 1 ở commit `1c71360`, bổ sung quyền Photos ở `1af7f69` trên `research/tech_stack`. Task 2 đang ở working tree, chưa commit để người dùng review.
 
 ### Kiểm chứng Task 1
 
@@ -183,3 +187,20 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 Không bật `UIFileSharingEnabled` hoặc `LSSupportsOpeningDocumentsInPlace` để giả lập một quyền Files: các cờ này thay đổi cách truy cập tài liệu, không tạo prompt xin quyền.
 
 Căn cứ: [Apple — Photos picker](https://developer.apple.com/videos/play/wwdc2020/10652/), [Photo Library Additions Usage Description](https://developer.apple.com/documentation/bundleresources/information-property-list/nsphotolibraryaddusagedescription), [Document picker](https://developer.apple.com/documentation/uikit/uidocumentpickerviewcontroller).
+
+### Kiểm chứng Task 2 — 22/10/2026
+
+- Dùng `superpowers:executing-plans` trong checkout `research/tech_stack` hiện có; chỉ làm Task 2, giữ thay đổi chưa commit và dừng để review. Không chạy Task 3 hoặc kết thúc/merge toàn bộ branch.
+- Phạm vi: thêm `Printer/PrintService.swift`, `Printer/PrinterViewController.swift`, `PrintServiceTests.swift`; nối Printer vào tab root và thêm hai hành động in ở preview. Dùng chung DocumentStore; project/Info.plist, dependency và deployment target không đổi.
+- PDF được kiểm tra khóa/quyền in rồi dùng snapshot byte-for-byte, không raster hóa. JPEG/PNG/HEIC ghép lần lượt theo thứ tự chọn, xử lý EXIF và nền trắng; ảnh in giới hạn **3508 px/cạnh** (~300 dpi A4), giữ nguyên nguồn. PDF ghép/calibration chỉ mở review sau khi nhập thành công vào DocumentStore.
+- Picker lưu/khôi phục URL; thông tin model/color/duplex chỉ hiển thị sau contact thành công. In trực tiếp contact lại, xác nhận tài liệu/máy in, dùng mặc định máy; muốn chọn trang/khổ giấy/duplex thì dùng print sheet. Kết quả callback được ghi là kết quả xử lý yêu cầu, không xác nhận giấy đã in.
+- **RED:** 8 test mới chạy trên skeleton, 7 fail với 9 issue; gồm chuẩn bị PDF/ảnh, phân biệt khóa/cấm in, thứ tự/hướng ảnh, hủy và calibration. UI test fail vì chưa có ô chọn máy in. Log `task2-red-validation.log`, `task2-red-ui-retry.log` trong workspace của plan.
+- **GREEN cuối:** **21 unit test** (3 suite), **8 UI test chức năng** và **4 lượt launch theo cấu hình giao diện** pass trên **iPhone 17 Pro / iOS 26.4**, UUID `D6759AEC-CFFC-4FBF-BCA5-6E7EE4D82EC8`; `xcodebuild test` toàn suite trả **TEST SUCCEEDED**, exit 0. Bao gồm các kiểm thử hồi quy Task 1.
+- **iPad Pro 13-inch (M5) / iOS 26.4**, UUID `6DFA6BB0-FED1-42E1-AD6D-1C2D0C4182FD`: **2 smoke test pass**, kiểm tra picker/cancel và calibration → preview → print sheet/cancel → lỗi khi in trực tiếp chưa chọn máy, với anchor iPad.
+- System print sheet ở iOS 26.4 dùng nút **Close**; test đối chiếu hierarchy thực tế, không đổi UI hệ thống. Một lượt bootstrap bị gián đoạn do runner chồng nhau và một lượt chờ launch simulator đã được ghi riêng; chúng không được tính là product test pass. Chạy nối tiếp trên simulator đã boot lại cho kết quả GREEN nêu trên.
+- Kiểm tra `plutil -lint` và `git diff --check` pass. App target giữ **iOS 15.0**, unit-test target giữ **26.4**; không có runtime iOS 15 để kiểm tra thực thi baseline.
+- Log/ledger local: `.superpowers/sdd/2026-10-22-smart-printer-lab/` (git-ignored), gồm `task-2-tests.log`, `task2-final-result.log`, `task2-ipad-ui.json`. Artifact suite cuối: `/var/folders/57/y7jqj7ms36n72f3wwq432r5h0000gn/T/axbuild/run-0B481EF1-B210-4EED-962E-A2627935E096/result.xcresult`.
+
+| Kiểm tra phần cứng Task 2 | Model | Firmware | Mạng | Kết quả bản giấy |
+|---|---|---|---|---|
+| AirPrint online/offline, đổi máy, in trực tiếp, nhiều trang, color/duplex, calibration A4/Letter | Chưa có máy để kiểm tra | Chưa ghi nhận | Chưa ghi nhận | **Not run / chưa kiểm chứng** |

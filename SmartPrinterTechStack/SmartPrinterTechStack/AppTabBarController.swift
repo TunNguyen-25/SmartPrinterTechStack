@@ -6,7 +6,7 @@ final class AppTabBarController: UITabBarController {
         let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Library", isDirectory: true)
         let store = DocumentStore(rootURL: root)
-        let printer = pendingTool(title: "Printer", detail: "UIKit Printing • iOS 15+\nChọn và in qua AirPrint sẽ được triển khai ở Task 2.")
+        let printer = PrinterViewController(store: store)
         let scan = pendingTool(title: "Scan", detail: "VisionKit / Vision\nScan và OCR sẽ được triển khai ở Task 4. Hiện có thể nhập ảnh hoặc file ở tab File.")
         let files = FilesViewController(store: store)
         viewControllers = zip([printer, scan, files], ["printer", "doc.viewfinder", "folder"]).map { controller, symbol in

@@ -6,11 +6,13 @@ import UniformTypeIdentifiers
 final class DocumentPreviewViewController: UIViewController, QLPreviewControllerDataSource {
     private var document: LibraryDocument
     private let store: DocumentStore
+    private let printService: PrintService
     private var previewTask: Task<Void, Never>?
 
-    init(document: LibraryDocument, store: DocumentStore) {
+    init(document: LibraryDocument, store: DocumentStore, printService: PrintService? = nil) {
         self.document = document
         self.store = store
+        self.printService = printService ?? .shared
         super.init(nibName: nil, bundle: nil)
         title = document.name
     }
@@ -23,7 +25,20 @@ final class DocumentPreviewViewController: UIViewController, QLPreviewController
         loadPreview()
     }
     private func configureActions() {
+        let printAction = UIAction(title: "In qua hệ thống", image: UIImage(systemName: "printer")) { [weak self] _ in
+            guard let self else { return }
+            self.printService.presentPrint(document: self.document, from: self)
+        }
+        printAction.accessibilityIdentifier = "printDocument"
+        let directAction = UIAction(title: "In trực tiếp…", image: UIImage(systemName: "printer.fill")) { [weak self] _ in
+            guard let self else { return }
+            self.printService.presentDirectPrint(document: self.document, from: self)
+        }
+        directAction.accessibilityIdentifier = "directPrint"
+        let printable = document.url.pathExtension.lowercased() == "pdf" || UTType(filenameExtension: document.url.pathExtension)?.conforms(to: .image) == true
+        if !printable { printAction.attributes = .disabled; directAction.attributes = .disabled }
         let menu = UIMenu(children: [
+            printAction, directAction,
             UIAction(title: "Chia sẻ", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in self?.share() },
             UIAction(title: "Xuất sang Files", image: UIImage(systemName: "folder")) { [weak self] _ in self?.export() },
             UIAction(title: "Đổi tên", image: UIImage(systemName: "pencil")) { [weak self] _ in self?.rename() },
@@ -122,6 +137,7 @@ final class DocumentPreviewViewController: UIViewController, QLPreviewController
                 do {
                     self.document = try await self.store.rename(id: self.document.id, to: name)
                     self.title = self.document.name
+                    self.configureActions()
                     self.loadPreview()
                 } catch { self.showError(error) }
             }
