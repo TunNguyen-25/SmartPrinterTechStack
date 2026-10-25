@@ -1,0 +1,15 @@
+{
+  "originHash" : "be9a0f649c21234e28157c1c75059b7a3eed4b23fe4024afd09f2557c6d286b4",
+  "pins" : [
+    {
+      "identity" : "zlimageeditor",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/longitachi/ZLImageEditor.git",
+      "state" : {
+        "revision" : "6a0f56fb631a8b3f3e70c08895a3e71d921fd4cd",
+        "version" : "3.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}

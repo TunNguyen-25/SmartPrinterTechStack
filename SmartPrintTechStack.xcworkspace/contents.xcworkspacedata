@@ -7,4 +7,10 @@
    <FileRef
       location = "group:LANShare/LANShare.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:FileEditor/ImageEditor/ImageEditor.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:FileEditor/PDFEditor/PDFEditor.xcodeproj">
+   </FileRef>
 </Workspace>
