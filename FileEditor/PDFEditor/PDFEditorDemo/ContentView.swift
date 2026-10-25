@@ -5,8 +5,9 @@ import PDFEditorKit
 struct ContentView: View {
     struct Output: Identifiable {
         let id = UUID()
-        let engine: PDFEditorEngine
+        let label: String
         let url: URL
+        let pages: Int
     }
 
     @State private var source: URL?
@@ -19,21 +20,29 @@ struct ContentView: View {
             List {
                 Section("PDF gốc") {
                     Button("Chọn PDF từ Files") { importing = true }
-                    Button("Tạo PDF mẫu (2 trang)") { source = makeSamplePDF() }
+                    Button("Tạo PDF mẫu (4 trang)") { source = makeSamplePDF() }
                     if let source {
                         NavigationLink(source.lastPathComponent) { PDFPreview(url: source) }
                     }
                 }
                 Section("Sửa bằng") {
                     ForEach(PDFEditorEngine.allCases, id: \.self) { engine in
-                        Button(engine.isAvailable ? engine.rawValue : "\(engine.rawValue) — cần iOS mới hơn") { edit(with: engine) }
-                            .disabled(source == nil || !engine.isAvailable)
+                        Button(engine.isAvailable ? engine.rawValue : "\(engine.rawValue) — cần iOS mới hơn") {
+                            open(engine.rawValue, engine.makeViewController(url:onSave:))
+                        }
+                        .disabled(source == nil || !engine.isAvailable)
+                    }
+                }
+                Section("Thao tác trang (PDFKit)") {
+                    ForEach(PDFPageTool.allCases, id: \.self) { tool in
+                        Button(tool.rawValue) { open(tool.rawValue, tool.makeViewController(url:onSave:)) }
+                            .disabled(source == nil)
                     }
                 }
                 if !outputs.isEmpty {
                     Section("Kết quả") {
                         ForEach(outputs.reversed()) { output in
-                            NavigationLink(output.engine.rawValue) { PDFPreview(url: output.url) }
+                            NavigationLink("\(output.label) • \(output.pages) trang") { PDFPreview(url: output.url) }
                         }
                     }
                 }
@@ -50,10 +59,12 @@ struct ContentView: View {
         .navigationViewStyle(.stack)
     }
 
-    private func edit(with engine: PDFEditorEngine) {
+    private func open(_ label: String, _ make: (URL, @escaping @MainActor (URL) -> Void) -> UIViewController?) {
         guard let source else { return }
-        guard let editor = engine.makeViewController(url: source, onSave: { outputs.append(Output(engine: engine, url: $0)) }) else {
-            error = "Không mở được PDF (hỏng hoặc bị khóa)."
+        guard let editor = make(source, { url in
+            outputs.append(Output(label: label, url: url, pages: PDFDocument(url: url)?.pageCount ?? 0))
+        }) else {
+            error = "Không mở được PDF (hỏng, bị khóa hoặc cấm sửa trang)."
             return
         }
         error = nil
@@ -73,11 +84,13 @@ struct ContentView: View {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("sample.pdf")
         let a4 = CGRect(x: 0, y: 0, width: 595, height: 842)
         try? UIGraphicsPDFRenderer(bounds: a4).writePDF(to: url) { context in
-            for number in 1...2 {
+            for number in 1...4 {
                 context.beginPage()
-                let text = "Trang \(number)\n\nĐây là PDF mẫu để thử highlight, thêm chữ, vẽ tay và chèn hình. " +
+                // Số trang to để nhận ra trong thumbnail khi thử Reorder/Split/Merge.
+                ("\(number)" as NSString).draw(at: CGPoint(x: 48, y: 40), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 160)])
+                let text = "Trang \(number)\n\nĐây là PDF mẫu để thử highlight, thêm chữ, vẽ tay, chèn hình và thao tác trang. " +
                     String(repeating: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ", count: 12)
-                (text as NSString).draw(in: a4.insetBy(dx: 48, dy: 60), withAttributes: [.font: UIFont.systemFont(ofSize: 16)])
+                (text as NSString).draw(in: a4.insetBy(dx: 48, dy: 60).offsetBy(dx: 0, dy: 200), withAttributes: [.font: UIFont.systemFont(ofSize: 16)])
             }
         }
         return url

@@ -134,10 +134,4 @@ final class PDFAnnotateViewController: UIViewController {
         guard document.write(to: url) else { return alert("Không ghi được PDF.") }
         dismiss(animated: true) { [onSave] in onSave(url) }
     }
-
-    private func alert(_ message: String) {
-        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
 }
