@@ -13,4 +13,7 @@
    <FileRef
       location = "group:FileEditor/PDFEditor/PDFEditor.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:DocumentScanner/DocumentScanner.xcodeproj">
+   </FileRef>
 </Workspace>
