@@ -5,20 +5,27 @@ import FlyingFox
 ///
 /// Every request must carry `?t=<token>`; the URL from `shareURL()` already includes it.
 public final class LANShareServer: Sendable {
+    public enum Event: Sendable {
+        /// `total` is nil when the browser didn't send Content-Length.
+        case progress(id: UUID, name: String, received: Int64, total: Int64?)
+        case completed(id: UUID, file: URL)
+        case failed(id: UUID, name: String)
+    }
+
     public let directory: URL
     public let port: UInt16
     public let token: String
     private let server: HTTPServer
 
-    /// - Parameter onReceive: called (off the main thread) with the saved file URL after each upload.
-    public init(directory: URL, port: UInt16 = 8080, onReceive: @escaping @Sendable (URL) -> Void = { _ in }) {
+    /// - Parameter onEvent: upload progress/result, called off the main thread.
+    public init(directory: URL, port: UInt16 = 8080, onEvent: @escaping @Sendable (Event) -> Void = { _ in }) {
         let token = String(UUID().uuidString.prefix(8))
         self.directory = directory
         self.port = port
         self.token = token
         // ponytail: one closure + switch instead of FlyingFox routes, 4 endpoints don't need a router
         self.server = HTTPServer(port: port, timeout: 60) { request in
-            try await Self.handle(request, directory: directory, token: token, onReceive: onReceive)
+            try await Self.handle(request, directory: directory, token: token, onEvent: onEvent)
         }
     }
 
@@ -40,7 +47,7 @@ public final class LANShareServer: Sendable {
     // MARK: - Routing
 
     static func handle(_ request: HTTPRequest, directory: URL, token: String,
-                       onReceive: @Sendable (URL) -> Void) async throws -> HTTPResponse {
+                       onEvent: @Sendable (Event) -> Void) async throws -> HTTPResponse {
         guard request.query["t"] == token else {
             return HTTPResponse(statusCode: .unauthorized, body: Data("Invalid or missing token".utf8))
         }
@@ -51,8 +58,7 @@ public final class LANShareServer: Sendable {
             return try listFiles(in: directory)
         case (.PUT, "/api/files"):
             guard let name = safeFileName(request.query["name"]) else { return HTTPResponse(statusCode: .badRequest) }
-            let saved = try await receive(request.bodySequence, named: name, in: directory)
-            onReceive(saved)
+            try await receive(request, named: name, in: directory, onEvent: onEvent)
             return HTTPResponse(statusCode: .created)
         case (.GET, "/api/file"):
             guard let name = safeFileName(request.query["name"]) else { return HTTPResponse(statusCode: .badRequest) }
@@ -83,17 +89,34 @@ public final class LANShareServer: Sendable {
     }
 
     /// Streams the raw request body straight to disk (no multipart; the page sends `xhr.send(file)`).
-    private static func receive(_ body: HTTPBodySequence, named name: String, in directory: URL) async throws -> URL {
+    private static func receive(_ request: HTTPRequest, named name: String, in directory: URL,
+                                onEvent: @Sendable (Event) -> Void) async throws {
+        let id = UUID()
+        let total = request.headers[.contentLength].flatMap { Int64($0) }
+        // ~100 updates per file, at most one per 256KB, so the UI isn't flooded by 4KB chunks
+        let step = max((total ?? 0) / 100, 256 * 1024)
+        var received: Int64 = 0
+        var lastReported: Int64 = 0
+
         let dest = uniqueURL(for: name, in: directory)
         FileManager.default.createFile(atPath: dest.path, contents: nil)
         let handle = try FileHandle(forWritingTo: dest)
+        onEvent(.progress(id: id, name: name, received: 0, total: total))
         do {
-            for try await chunk in body { try handle.write(contentsOf: chunk) }
+            for try await chunk in request.bodySequence {
+                try handle.write(contentsOf: chunk)
+                received += Int64(chunk.count)
+                if received - lastReported >= step {
+                    lastReported = received
+                    onEvent(.progress(id: id, name: name, received: received, total: total))
+                }
+            }
             try handle.close()
-            return dest
+            onEvent(.completed(id: id, file: dest))
         } catch {
             try? handle.close()
             try? FileManager.default.removeItem(at: dest) // don't leave half-written files behind
+            onEvent(.failed(id: id, name: name))
             throw error
         }
     }
