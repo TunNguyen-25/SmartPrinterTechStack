@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LAN Share</title>
+<style>
+  :root { color-scheme: light dark; --accent: #0a84ff; --border: #8884; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 22px; margin: 0 0 16px; }
+  #drop { border: 2px dashed var(--border); border-radius: 12px; padding: 32px 16px; text-align: center; cursor: pointer; }
+  #drop.over { border-color: var(--accent); background: #0a84ff14; }
+  ul { list-style: none; padding: 0; }
+  li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  li span:first-child { overflow-wrap: anywhere; }
+  progress { width: 100%; }
+  a { color: var(--accent); }
+  .muted { opacity: .6; }
+</style>
+</head>
+<body>
+<h1>LAN Share</h1>
+
+<label id="drop">
+  <input id="picker" type="file" multiple hidden>
+  Kéo thả file vào đây hoặc <a>chọn file</a> để gửi sang điện thoại
+</label>
+
+<ul id="uploads"></ul>
+
+<h2>File trên điện thoại</h2>
+<ul id="files"><li class="muted">Đang tải…</li></ul>
+
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+const api = (path, name) => `${path}?t=${encodeURIComponent(token)}` + (name ? `&name=${encodeURIComponent(name)}` : '');
+const $ = id => document.getElementById(id);
+
+function sizeText(bytes) {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+  return `${bytes.toFixed(i ? 1 : 0)} ${units[i]}`;
+}
+
+async function refresh() {
+  const list = $('files');
+  try {
+    const res = await fetch(api('/api/files'));
+    if (!res.ok) throw new Error(res.status);
+    const files = await res.json();
+    list.replaceChildren(...files.map(f => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = api('/api/file', f.name);
+      a.textContent = f.name;
+      const size = document.createElement('span');
+      size.className = 'muted';
+      size.textContent = sizeText(f.size);
+      li.append(a, size);
+      return li;
+    }));
+    if (!files.length) list.innerHTML = '<li class="muted">Chưa có file</li>';
+  } catch (e) {
+    list.innerHTML = '<li class="muted">Không kết nối được tới điện thoại</li>';
+  }
+}
+
+// Raw body upload (no multipart) so the phone can stream straight to disk.
+// XHR instead of fetch: fetch can't report upload progress.
+function upload(file) {
+  const li = document.createElement('li');
+  li.style.flexDirection = 'column';
+  const label = document.createElement('span');
+  label.textContent = file.name;
+  const bar = document.createElement('progress');
+  li.append(label, bar);
+  $('uploads').append(li);
+
+  return new Promise(resolve => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', api('/api/files', file.name));
+    xhr.upload.onprogress = e => { if (e.lengthComputable) { bar.max = e.total; bar.value = e.loaded; } };
+    xhr.onload = () => { label.textContent = `${file.name} — ${xhr.status === 201 ? 'xong' : 'lỗi ' + xhr.status}`; bar.remove(); resolve(); };
+    xhr.onerror = () => { label.textContent = `${file.name} — mất kết nối`; bar.remove(); resolve(); };
+    xhr.send(file);
+  });
+}
+
+async function uploadAll(files) {
+  for (const f of files) await upload(f); // one at a time keeps the phone's memory/IO calm
+  refresh();
+}
+
+const drop = $('drop');
+$('picker').onchange = e => { uploadAll([...e.target.files]); e.target.value = ''; };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); uploadAll([...e.dataTransfer.files]); };
+
+refresh();
+</script>
+</body>
+</html>

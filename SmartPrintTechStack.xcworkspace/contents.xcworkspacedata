@@ -4,4 +4,7 @@
    <FileRef
       location = "group:SmartPrinterTechStack/SmartPrinterTechStack.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:LANShare/LANShare.xcodeproj">
+   </FileRef>
 </Workspace>
