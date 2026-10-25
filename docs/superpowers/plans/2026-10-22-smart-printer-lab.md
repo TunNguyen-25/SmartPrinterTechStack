@@ -77,15 +77,18 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 
 **Đợt 2: import → edit → lưu → in hoàn chỉnh.**
 
+**Trạng thái 24/10/2026:** Hoàn tất triển khai và kiểm thử tự động; toàn suite hồi quy GREEN (39 unit test, 10 UI test chức năng và 4 cấu hình launch trên iPhone), smoke test iPad pass. Dừng để người dùng review; các kiểm tra thủ công bên dưới chưa chạy.
+
 **Files:** PDFEditorViewController, ImageEditorViewController, DocumentPreviewViewController, DocumentStore; PDFEditingTests, ImageEditingTests.
 
 **Interfaces:** editor nhận `LibraryDocument` và `DocumentStore`; lưu bản sao bằng đường import của Task 1. Helper `makeEditedPDF(source: URL, pageIndices: [Int], rotations: [Int: Int]) throws -> URL` trả staging output; các thao tác merge/split/crop cùng làm trên bản làm việc, không sửa input đang preview.
 
-- [ ] Test PDF reorder/rotate/delete/merge/split/crop bằng tài liệu nhỏ có text/annotation; output reopen đúng trang, text/annotation còn, input byte-for-byte không đổi. Reject index ngoài phạm vi và xóa hết trang. Xác nhận fail trước code.
-- [ ] Làm thumbnail selection, thao tác trang và lưu bản sao PDFKit; reject/quy định unlock cho PDF khóa và tôn trọng permissions. Không raster hóa toàn bộ PDF, không cung cấp redaction hoặc sửa chữ gốc.
-- [ ] Tích hợp Quick Look markup với delegate lưu cả bản copy; kiểm tra capability edit thực tế, hủy không tạo output. Kết quả callback tạm phải được nhập bền trước khi báo lưu.
-- [ ] Test ảnh EXIF orientation, crop sát mép, rotate/flip/resize, grayscale và kích thước export; implement Core Image/Core Graphics và Image I/O downsample preview, áp dụng chỉnh sửa từ nguồn gốc.
-- [ ] Test pass; manual lưu/mở lại/print markup, crop trên trang đã xoay, alpha PNG, HEIC, ảnh 48 MP, cancel/lỗi ghi; kiểm tra memory bằng Instruments trên thiết bị ở đợt cuối.
+- [x] Test PDF reorder/rotate/delete/merge/split/crop bằng tài liệu nhỏ có text/annotation; output reopen đúng trang, text/annotation còn, input byte-for-byte không đổi. Reject index ngoài phạm vi và xóa hết trang. Xác nhận fail trước code.
+- [x] Làm thumbnail selection, thao tác trang và lưu bản sao PDFKit; reject/quy định unlock cho PDF khóa và tôn trọng permissions. Không raster hóa toàn bộ PDF, không cung cấp redaction hoặc sửa chữ gốc.
+- [x] Tích hợp Quick Look markup với delegate lưu cả bản copy; kiểm tra capability edit thực tế, hủy không tạo output. Kết quả callback tạm phải được nhập bền trước khi báo lưu.
+- [x] Test ảnh EXIF orientation, crop sát mép, rotate/flip/resize, grayscale và kích thước export; implement Core Image/Core Graphics và Image I/O downsample preview, áp dụng chỉnh sửa từ nguồn gốc.
+- [x] Toàn suite hồi quy Task 1–3 pass: 39 unit test, 10 UI test chức năng và 4 cấu hình launch trên iPhone; 2 smoke test editor trên iPad pass, chạy lại luồng search/ảnh sau sửa navigation cũng pass.
+- [ ] Manual còn lại (**Not run**): thao tác vẽ markup thật → lưu/mở lại/in, kiểm tra hình thức crop trên trang đã xoay, alpha/HEIC từ thiết bị thật, ảnh 48 MP/PDF 50 trang, hủy giữa lúc đang export/thiếu dung lượng thực tế; memory bằng Instruments trên thiết bị. Alpha PNG, HEIC fixture, EXIF, crop/rotate và cancellation ở ranh giới export đã có unit test; chưa thay thế kiểm tra phần cứng.
 
 ### Task 4 — Scan nhiều trang và OCR
 
@@ -158,8 +161,9 @@ Các đường dẫn sau tính từ repo root. Chỉ tạo file khi task cần �
 
 - **Task 1: hoàn tất triển khai và kiểm thử tự động, chờ review** — ba tab, DocumentStore, Files/Photos, preview, share/export và bộ mẫu offline. Các kiểm tra thủ công chưa chạy vẫn để unchecked; chưa chứng nhận các trường hợp đó.
 - **Task 2: hoàn tất triển khai và kiểm thử tự động, chờ review** — picker AirPrint, lưu URL/check capability, in từ preview dùng chung service, in trực tiếp có xác nhận, ghép ảnh và calibration A4/Letter. Các ca in thật vẫn Not run.
-- **Task 3–8: chưa bắt đầu**. Dừng sau Task 2 theo yêu cầu; không tự chuyển task.
-- Task 1 ở commit `1c71360`, bổ sung quyền Photos ở `1af7f69` trên `research/tech_stack`. Task 2 đang ở working tree, chưa commit để người dùng review.
+- **Task 3: hoàn tất triển khai và kiểm thử tự động, chờ review** — editor PDF/ảnh native, Quick Look markup lưu bản sao; toàn suite hồi quy pass, manual phần cứng/markup còn Not run. Dừng sau Task 3 theo yêu cầu.
+- **Task 4–8: chưa bắt đầu**; không tự chuyển task.
+- Task 1 ở commit `1c71360`, bổ sung quyền Photos ở `1af7f69` trên `research/tech_stack`. Task 2 ở commit `8e91c7b`; Task 3 ở working tree, chưa commit để người dùng review.
 
 ### Kiểm chứng Task 1
 
@@ -204,3 +208,20 @@ Căn cứ: [Apple — Photos picker](https://developer.apple.com/videos/play/wwd
 | Kiểm tra phần cứng Task 2 | Model | Firmware | Mạng | Kết quả bản giấy |
 |---|---|---|---|---|
 | AirPrint online/offline, đổi máy, in trực tiếp, nhiều trang, color/duplex, calibration A4/Letter | Chưa có máy để kiểm tra | Chưa ghi nhận | Chưa ghi nhận | **Not run / chưa kiểm chứng** |
+
+### Kiểm chứng Task 3 — 24/10/2026
+
+- Dùng `superpowers:executing-plans`, tiếp tục checkout `research/tech_stack` theo quyết định workspace trước đó. Chỉ Task 3; giữ diff chưa commit để người dùng review, giữ ledger cho lượt sau; chưa chạy Task 4–8 hoặc review/merge toàn branch.
+- Phạm vi: `PDFEditing.swift`, `PDFEditorViewController.swift`, `ImageEditing.swift`, `ImageEditorViewController.swift`; nối edit/markup ở `DocumentPreviewViewController`, xác định nội dung callback ở `DocumentPreviewLoader`; bỏ một dòng tắt search trước push trong `FilesViewController` để sửa lỗi navigation có sẵn được phát hiện khi kiểm thử; thêm `PDFEditingTests`, `ImageEditingTests`, `MarkupCopyTests` và 2 UI test editor. Tái sử dụng nguyên interface DocumentStore và PrintService; không thêm dependency, permission hoặc thay đổi project/deployment target.
+- PDF: thumbnail từng trang hiển thị, chọn trang để tách thành một PDF, kéo đổi thứ tự, xoay/xóa/crop, ghép PDF từ thư viện theo thứ tự thêm. Lưu bản sao bằng PDFKit, không raster hóa toàn bộ; test mở lại kiểm tra text, annotation, số/thứ tự trang và bytes input không đổi. PDF bị khóa, còn mã hóa hoặc hạn chế quyền bị từ chối; cần bản được chủ sở hữu cho phép mở khóa bên ngoài app. Không có password UI, redaction, sửa chữ gốc hay chữ ký số.
+- Crop box nhập bằng point trong hệ tọa độ PDF **trước xoay, gốc trái dưới**; thumbnail phản ánh crop/xoay. Nội dung ngoài crop vẫn tồn tại. Đã tái hiện PDFKit cache kết quả text theo crop; test mở rộng crop, lưu và mở lại lần nữa để xác nhận text ẩn vẫn còn. Không gọi crop là xóa thông tin.
+- Ảnh: JPEG/PNG/HEIC tĩnh; EXIF 1–8, crop theo tọa độ chuẩn hóa gốc trái trên sau xoay/lật, rotate/flip ngang/dọc, resize pixel, brightness/contrast, grayscale/B&W. Preview Image I/O ≤1600 px; export Core Image đọc lại nguồn đủ pixel, xuất **PNG** và giữ alpha. PNG có thể lớn hơn JPEG/HEIC đầu vào. Decode/export chạy ngoài main actor; kiểm tra cancellation trước/sau export và trước khi import.
+- Quick Look: kiểm tra nội dung/quyền trước khi mở; hệ thống quyết định có hiện Markup hay không. Dùng [editing mode `createCopy`](https://developer.apple.com/documentation/quicklook/qlpreviewcontrollerdelegate/previewcontroller(_:editingmodefor:)), không ghi đè input. Capture URL tạm bằng filesystem copy **trước khi callback trả về**, sau đó worker xác định định dạng thực/kiểm tra dữ liệu và DocumentStore nhập bền trước khi báo đã lưu. URL callback không đuôi, dữ liệu hỏng, source hết hạn ngay sau callback, lỗi import và hủy không tạo output đã có test. Copy đồng bộ trong callback có thể chiếm UI ngắn với file lớn; chưa đo trên thiết bị thật.
+- **RED:** skeleton PDF/ảnh gây 16 issue trong lượt 33 test; markup skeleton fail createCopy/copy bền; UI fail vì chưa có entry edit. Regression callback không đuôi/dữ liệu hỏng fail thêm 3 issue trước fix. Log `task3-red-unit.log`, `task3-red-integration.log`, `task3-red-markup-format.log` trong workspace plan.
+- **GREEN mục tiêu:** 39 unit test / 6 suite pass trên iPhone 17 Pro / iOS 26.4 (`D6759AEC-CFFC-4FBF-BCA5-6E7EE4D82EC8`); gồm HEIC fixture, mọi EXIF, alpha/B&W, PDF text/annotation/crop và callback/error/cancel. UI PDF sửa → lưu bản sao → relaunch → print sheet/cancel và ảnh sửa → lưu → Quick Look/Done đã pass.
+- **iPad Pro 13-inch (M5) / iOS 26.4** (`6DFA6BB0-FED1-42E1-AD6D-1C2D0C4182FD`): 2 UI smoke test editor pass; PDF lưu/mở lại/print sheet/cancel, ảnh lưu bản sao/Quick Look/cancel. `task3-ipad.log`, **TEST SUCCEEDED**, exit 0. Sau sửa navigation, ca tìm tên → ảnh edit/save → Quick Look/cancel đã chạy lại trên iPad và pass (`task3-ipad-search.log`, exit 0).
+- **Toàn suite hồi quy GREEN cuối:** 39 unit test / 6 suite, 10 UI test chức năng và 4 cấu hình launch pass trên iPhone 17 Pro / iOS 26.4; `xcodebuild test` toàn suite trả **TEST SUCCEEDED**, exit **0**. `task-done` đã ghi Task 3 complete vào ledger. Ba lượt full trước đều có 39 unit test pass nhưng còn lỗi UI chọn/tìm fixture; lượt sau cùng đã tới bước dọn dẹp sau in PDF nhưng query cũ chưa được xóa hết do con trỏ ở giữa text. Helper cuối dùng nút Clear hệ thống, assert query đúng; ca PDF đủ lưu/relaunch/in/xóa bản sao/mở lại bản gốc đã pass. Isolated swipe giúp test share pass; gom lookup qua tìm kiếm đã phát hiện thêm lỗi sản phẩm: tắt `search.isActive` ngay trước push khiến search dismiss xung đột với navigation. Bỏ duy nhất dòng tắt search; `definesPresentationContext` sẵn có để UIKit quản lý transition. Hai ca search → ảnh edit/save/Quick Look và search → TXT share đã RED→GREEN, không đổi assertion kết quả. Các UI test dùng helper tìm đúng tên và xác nhận preview, tránh phụ thuộc vị trí dòng/thumbnail. Log `task3-full-attempt1.log`, `task3-full-attempt2.log`, `task3-search-navigation.log`, `task3-search-fix.log`, `task3-search-clear.log`.
+- `git diff --check` và `plutil -lint` project/Info.plist pass. App giữ iOS **15.0**, test target **26.4**. SDK khai báo `CIColorThreshold` từ iOS 14; không cần nâng deployment. Chưa có runtime iOS 15 để chứng minh thực thi baseline.
+- **Not run:** vẽ markup thật rồi lưu/mở lại/in, kiểm tra hình thức crop trên trang xoay và alpha/HEIC từ thiết bị thật, ảnh 48 MP/PDF 50 trang, cancel giữa export, thiếu dung lượng thực tế và memory/time bằng Instruments. Simulator/callback fixtures không chứng minh chất lượng bản giấy hoặc hiệu năng phần cứng; các mục này tiếp tục để unchecked cho review.
+
+- Artifact GREEN cuối: `/tmp/smart-printer-lab-derived/Logs/Test/Test-SmartPrinterTechStack-2026.10.24_21-15-52-+0700.xcresult`; log `.superpowers/sdd/2026-10-22-smart-printer-lab/task-3-tests.log`. Diff giữ chưa commit để review, không tự thực hiện Task 4.

@@ -16,9 +16,7 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.buttons["samplePDF"].tap()
         XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10))
         app.buttons["finishImport"].tap()
-        let row = app.cells.containing(.staticText, identifier: "Sample.pdf").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
+        openLibraryDocument(app, named: "Sample.pdf")
         XCTAssertTrue(app.navigationBars["Sample.pdf"].waitForExistence(timeout: 5))
         app.buttons["documentActions"].tap()
         app.buttons["Đổi tên"].tap()
@@ -32,9 +30,7 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.terminate()
         app.launch()
         app.buttons.matching(identifier: "File").firstMatch.tap()
-        let persisted = app.cells.containing(.staticText, identifier: name).firstMatch
-        XCTAssertTrue(persisted.waitForExistence(timeout: 10))
-        persisted.tap()
+        openLibraryDocument(app, named: name)
         XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 5))
         app.buttons["documentActions"].tap()
         app.buttons["Xóa"].tap()
@@ -77,9 +73,7 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.buttons["sampleImage"].tap()
         XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10))
         app.buttons["finishImport"].tap()
-        let row = app.cells.containing(.staticText, identifier: "Sample.png").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
+        openLibraryDocument(app, named: "Sample.png")
         XCTAssertTrue(app.images["Sample.png"].waitForExistence(timeout: 10))
         app.buttons["documentActions"].tap()
         app.buttons["Xuất sang Files"].tap()
@@ -109,9 +103,7 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.buttons["sampleImage"].tap()
         XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10))
         app.buttons["finishImport"].tap()
-        let row = app.cells.containing(.staticText, identifier: "Sample.png").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
+        openLibraryDocument(app, named: "Sample.png")
         XCTAssertTrue(app.images["Sample.png"].waitForExistence(timeout: 10))
         app.buttons["documentActions"].tap()
         app.buttons["Chia sẻ"].tap()
@@ -143,10 +135,8 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.buttons["sampleText"].tap()
         XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10))
         app.buttons["finishImport"].tap()
-        let row = app.cells.containing(.staticText, identifier: "Sample.txt").firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
-        XCTAssertTrue(app.navigationBars["Sample.txt"].waitForExistence(timeout: 5))
+        openLibraryDocument(app, named: "Sample.txt")
+        XCTAssertTrue(app.navigationBars["Sample.txt"].waitForExistence(timeout: 5), app.debugDescription)
         app.buttons["documentActions"].tap()
         app.buttons["Chia sẻ"].tap()
         let copy = app.descendants(matching: .any).matching(identifier: "Copy").firstMatch
@@ -199,6 +189,95 @@ final class SmartPrinterTechStackUITests: XCTestCase {
         app.buttons["Xóa"].tap()
         app.alerts.buttons["Xóa"].tap()
         XCTAssertTrue(app.navigationBars["Printer"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testPDFEditSaveCopyPersistsAndCancelKeepsOriginal() throws {
+        let app = XCUIApplication()
+        let stem = "Edit-\(UUID())"
+        app.launch()
+        app.buttons.matching(identifier: "File").firstMatch.tap()
+        app.buttons["importDocuments"].tap()
+        app.buttons["samplePDF"].tap()
+        XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10))
+        app.buttons["finishImport"].tap()
+        openLibraryDocument(app, named: "Sample.pdf")
+        renameOpenDocument(app, to: stem + ".pdf")
+        app.buttons["documentActions"].tap()
+        app.buttons["editPDF"].tap()
+        XCTAssertTrue(app.cells["pdfPage-0"].waitForExistence(timeout: 10))
+        app.buttons["cancelEditor"].tap()
+        XCTAssertTrue(app.navigationBars[stem + ".pdf"].waitForExistence(timeout: 5))
+        app.buttons["documentActions"].tap()
+        app.buttons["editPDF"].tap()
+        XCTAssertTrue(app.cells["pdfPage-0"].waitForExistence(timeout: 10))
+        app.buttons["pageActions-0"].tap()
+        app.buttons["Xoay 90°"].tap()
+        app.buttons["saveEditedCopy"].tap()
+        XCTAssertTrue(app.navigationBars[stem + "-edited.pdf"].waitForExistence(timeout: 10))
+        app.terminate(); app.launch()
+        app.buttons.matching(identifier: "File").firstMatch.tap()
+        openLibraryDocument(app, named: stem + "-edited.pdf")
+        app.buttons["documentActions"].tap()
+        app.buttons["printDocument"].tap()
+        let close = app.buttons.matching(NSPredicate(format: "label == 'Close' OR label == 'Cancel'")).firstMatch
+        XCTAssertTrue(close.waitForExistence(timeout: 10)); close.tap()
+        if app.alerts["Kết quả yêu cầu in"].waitForExistence(timeout: 3) { app.alerts.buttons["Đóng"].tap() }
+        app.buttons["documentActions"].tap(); app.buttons["Xóa"].tap(); app.alerts.buttons["Xóa"].tap()
+        openLibraryDocument(app, named: stem + ".pdf")
+        app.buttons["documentActions"].tap(); app.buttons["Xóa"].tap(); app.alerts.buttons["Xóa"].tap()
+    }
+
+    @MainActor
+    func testImageEditSaveCopyAndQuickLookCancel() throws {
+        let app = XCUIApplication()
+        let stem = "ImageEdit-\(UUID())"
+        app.launch()
+        app.buttons.matching(identifier: "File").firstMatch.tap()
+        app.buttons["importDocuments"].tap(); app.buttons["sampleImage"].tap()
+        XCTAssertTrue(app.buttons["finishImport"].waitForExistence(timeout: 10)); app.buttons["finishImport"].tap()
+        openLibraryDocument(app, named: "Sample.png")
+        renameOpenDocument(app, to: stem + ".png")
+        app.buttons["documentActions"].tap(); app.buttons["editImage"].tap()
+        XCTAssertTrue(app.images["editedImagePreview"].waitForExistence(timeout: 10))
+        app.buttons["imageTools"].tap(); app.buttons["Xoay 90°"].tap()
+        app.buttons["saveEditedCopy"].tap()
+        XCTAssertTrue(app.navigationBars[stem + "-edited.png"].waitForExistence(timeout: 10))
+        app.buttons["documentActions"].tap(); app.buttons["quickLookMarkup"].tap()
+        let done = app.buttons.matching(NSPredicate(format: "label == 'Done' OR label == 'Close'")).firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 10), app.debugDescription); done.tap()
+        XCTAssertTrue(app.navigationBars[stem + "-edited.png"].waitForExistence(timeout: 5))
+        app.buttons["documentActions"].tap(); app.buttons["Xóa"].tap(); app.alerts.buttons["Xóa"].tap()
+        openLibraryDocument(app, named: stem + ".png")
+        app.buttons["documentActions"].tap(); app.buttons["Xóa"].tap(); app.alerts.buttons["Xóa"].tap()
+    }
+
+    @MainActor
+    private func openLibraryDocument(_ app: XCUIApplication, named name: String) {
+        let search = app.searchFields.firstMatch
+        for _ in 0..<12 {
+            if search.exists && search.isHittable { break }
+            app.tables.firstMatch.swipeDown()
+        }
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        if search.buttons.firstMatch.exists { search.buttons.firstMatch.tap() }
+        search.typeText(name)
+        XCTAssertEqual(search.value as? String, name)
+        let row = app.cells.containing(.staticText, identifier: name).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), app.debugDescription)
+        row.tap()
+        XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 10), app.debugDescription)
+    }
+
+    @MainActor
+    private func renameOpenDocument(_ app: XCUIApplication, to name: String) {
+        app.buttons["documentActions"].tap(); app.buttons["Đổi tên"].tap()
+        let field = app.alerts.textFields.firstMatch
+        let previous = field.value as? String ?? ""
+        field.tap(); field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count) + name)
+        app.alerts.buttons["Lưu"].tap()
+        XCTAssertTrue(app.navigationBars[name].waitForExistence(timeout: 5))
     }
 
 }

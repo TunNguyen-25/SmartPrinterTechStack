@@ -91,7 +91,6 @@ final class FilesViewController: UITableViewController, UISearchResultsUpdating 
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let document = visible[indexPath.row]
-        search.isActive = false
         navigationController?.pushViewController(DocumentPreviewViewController(document: document, store: store), animated: true)
     }
 }
