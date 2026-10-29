@@ -54,10 +54,18 @@ public final class FileListViewController: UITableViewController {
 - Tìm kiếm, sắp xếp, thumbnail thật, đổi tên, chia sẻ.
 
 ## Tiêu chí hoàn thành
-- [ ] Mở app thấy 4 file mẫu với icon và subtitle đúng
-- [ ] Tap → action sheet → "Sửa" mở đúng editor theo loại file
-- [ ] Chọn 3 file theo thứ tự C, A, B → `onPrint` nhận đúng [C, A, B]. Có thể kiểm tra bằng `print` tạm hoặc qua task 03.
-- [ ] Nút "Xem trước in (n)" cập nhật n và disable khi n = 0
-- [ ] Swipe xoá được, danh sách trống thì hiện empty state
-- [ ] Import từ Files (simulator: kéo file vào Files app trước) xong thì file xuất hiện trong list
-- [ ] Không có cảnh báo Auto Layout hay popover crash trên iPad simulator
+- [x] Mở app thấy 4 file mẫu với icon và subtitle đúng
+- [x] Tap → action sheet → "Sửa" mở đúng editor theo loại file
+- [x] Chọn 3 file theo thứ tự C, A, B → `onPrint` nhận đúng [C, A, B]. Có thể kiểm tra bằng `print` tạm hoặc qua task 03.
+- [x] Nút "Xem trước in (n)" cập nhật n và disable khi n = 0
+- [x] Swipe xoá được, danh sách trống thì hiện empty state
+- [x] Import từ Files (simulator: kéo file vào Files app trước) xong thì file xuất hiện trong list
+- [x] Không có cảnh báo Auto Layout hay popover crash trên iPad simulator
+
+## Kiểm tra triển khai (29/10/2026)
+
+- Build simulator thành công, `SELFTEST OK` trên iPhone 17 Pro và iPad Pro 11-inch (iOS 26.4).
+- Self-test kiểm tra callback C/A/B, bỏ chọn/chọn lại, chọn tất cả, reload giữ URL khi đổi thứ tự, xoá selection đã mất, empty state, import nhiều file trùng tên, swipe và coordinator root.
+- Đã thao tác UI: đủ 4 file mẫu, mở cả 3 editor, chọn 3 file, mở Preview/ẩn toolbar, context menu, swipe xoá, import TXT qua Files, action sheet iPad.
+- Task 03 chưa triển khai: `showPrintPreview(for:)` tạm convert và mở Preview của file đầu tiên; callback từ danh sách vẫn nhận đủ file theo thứ tự chọn.
+- Ảnh kiểm tra: `/tmp/printflow-list-iphone.png`, `/tmp/printflow-multiselect-iphone.png`, `/tmp/printflow-import-iphone.png`, `/tmp/printflow-popover-ipad.png`.

@@ -25,6 +25,24 @@ public final class PrintFlowCoordinator {
         }
     }
 
+    public func start() {
+        let list = container.makeFileList(onEdit: { [weak self] in self?.open($0) },
+                                          onPrint: { [weak self] in self?.showPrintPreview(for: $0) })
+        navigationController?.setViewControllers([list], animated: false)
+    }
+
+    public func showPrintPreview(for documents: [SourceDocument]) {
+        do {
+            if let preview = try container.makePreview(for: documents) {
+                navigationController?.pushViewController(preview, animated: true)
+            }
+        } catch {
+            let alert = UIAlertController(title: "Không chuyển được sang PDF", message: error.localizedDescription, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            navigationController?.present(alert, animated: true)
+        }
+    }
+
     private func showPreview(_ pdf: PDFDocument, jobName: String) {
         navigationController?.pushViewController(container.makePreview(for: pdf, jobName: jobName), animated: true)
     }

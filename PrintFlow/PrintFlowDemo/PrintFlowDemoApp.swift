@@ -14,12 +14,19 @@ struct PrintFlowDemoApp: App {
 
 /// Dựng container + coordinator một lần, gắn vào navigation controller gốc.
 private struct RootView: UIViewControllerRepresentable {
+    final class Coordinator {
+        var flow: PrintFlowCoordinator?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIViewController(context: Context) -> UINavigationController {
         let navigation = UINavigationController()
         let container = PrintFlowContainer()
         SampleDocuments.seedIfEmpty(container.library)
         let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
-        navigation.viewControllers = [HomeViewController(samples: container.library.items().map(\.document), onPick: coordinator.open)]
+        context.coordinator.flow = coordinator
+        coordinator.start()
         return navigation
     }
 

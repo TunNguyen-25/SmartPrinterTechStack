@@ -29,6 +29,7 @@ enum SelfTest {
             check(sampleLibrary.items().count == 4, "không seed lại khi đã có file")
             check(try Data(contentsOf: sample.url) == edited, "seed không ghi đè file đã sửa")
             try checkLibrary()
+            try checkFileList()
         } catch {
             check(false, "kho file: \(error)")
         }
@@ -101,6 +102,85 @@ enum SelfTest {
         check(items.first?.byteCount == edited.count && items.first?.modifiedAt == newest, "metadata ngày sửa và kích thước")
         try library.delete(copy)
         check(library.items().count == 2 && !files.fileExists(atPath: copy.url.path), "xoá file khỏi kho")
+    }
+
+    private static func checkFileList() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("selftest-list-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let library = FileLibrary(folder: root)
+        for name in ["A.txt", "B.txt", "C.txt"] {
+            try Data(name.utf8).write(to: root.appendingPathComponent(name))
+        }
+        var printed: [URL] = []
+        let container = PrintFlowContainer(library: library)
+        let list = container.makeFileList(onEdit: { _ in }, onPrint: { printed = $0.map(\.url) })
+        list.loadViewIfNeeded()
+        list.reload()
+        let documents = library.items().map(\.document)
+        check(list.tableView.numberOfRows(inSection: 0) == 3, "list đọc kho file")
+        let cell = list.tableView(list.tableView, cellForRowAt: IndexPath(row: 0, section: 0))
+        check((cell.contentConfiguration as? UIListContentConfiguration)?.text == documents[0].url.lastPathComponent, "list hiện tên kèm extension")
+        func tap(_ item: UIBarButtonItem?) {
+            guard let item, let action = item.action else { check(false, "thiếu action"); return }
+            // Self-test chạy trước UIApplication nhận sự kiện, gọi target trực tiếp.
+            guard let target = item.target as? NSObject else { check(false, "thiếu target"); return }
+            target.perform(action, with: item)
+        }
+        func select(_ name: String) {
+            let row = documents.firstIndex { $0.url.lastPathComponent == name }!
+            let path = IndexPath(row: row, section: 0)
+            list.tableView.selectRow(at: path, animated: false, scrollPosition: .none)
+            list.tableView(list.tableView, didSelectRowAt: path)
+        }
+        tap(list.navigationItem.rightBarButtonItem)
+        check(list.isEditing && list.toolbarItems?.last?.isEnabled == false, "chọn nhiều ban đầu chưa in được")
+        select("C.txt"); select("A.txt"); select("B.txt")
+        check(list.toolbarItems?.last?.title == "Xem trước in (3)", "đếm file được chọn")
+        tap(list.toolbarItems?.last)
+        check(printed.map(\.lastPathComponent) == ["C.txt", "A.txt", "B.txt"], "in đúng thứ tự C A B")
+        check(!list.isEditing && list.tableView.indexPathsForSelectedRows == nil, "in xong bỏ chọn")
+        tap(list.navigationItem.rightBarButtonItem)
+        select("C.txt"); select("A.txt")
+        let path = IndexPath(row: documents.firstIndex { $0.url.lastPathComponent == "C.txt" }!, section: 0)
+        list.tableView.deselectRow(at: path, animated: false)
+        list.tableView(list.tableView, didDeselectRowAt: path)
+        select("C.txt")
+        tap(list.toolbarItems?.last)
+        check(printed.map(\.lastPathComponent) == ["A.txt", "C.txt"], "chọn lại được đưa xuống cuối")
+        tap(list.navigationItem.rightBarButtonItem)
+        select("C.txt")
+        tap(list.navigationItem.leftBarButtonItem)
+        tap(list.toolbarItems?.last)
+        check(printed.first?.lastPathComponent == "C.txt" && Set(printed) == Set(documents.map(\.url)), "chọn tất cả giữ thứ tự trước đó")
+        tap(list.navigationItem.rightBarButtonItem)
+        tap(list.navigationItem.leftBarButtonItem)
+        tap(list.navigationItem.leftBarButtonItem)
+        check(list.toolbarItems?.last?.isEnabled == false, "bỏ chọn tất cả tắt nút in")
+        select("A.txt")
+        let selectedA = documents.first { $0.url.lastPathComponent == "A.txt" }!
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 2_000_000_000)], ofItemAtPath: selectedA.url.path)
+        list.reload()
+        check(list.tableView.indexPathsForSelectedRows == [IndexPath(row: 0, section: 0)], "reload giữ selection theo URL khi đổi thứ tự")
+        try library.delete(documents.first { $0.url.lastPathComponent == "A.txt" }!)
+        list.reload()
+        check(list.tableView.numberOfRows(inSection: 0) == 2 && list.toolbarItems?.last?.isEnabled == false, "reload bỏ selection file bị xoá")
+        for item in library.items() { try library.delete(item.document) }
+        list.reload()
+        check((list.tableView.backgroundView as? UILabel)?.text == "Chưa có tài liệu. Bấm + để thêm.", "list trống có hướng dẫn import")
+        tap(list.navigationItem.rightBarButtonItem)
+        let external = root.deletingLastPathComponent().appendingPathComponent("import-\(UUID()).txt")
+        defer { try? FileManager.default.removeItem(at: external) }
+        try Data("Nhập từ bên ngoài".utf8).write(to: external)
+        list.documentPicker(UIDocumentPickerViewController(forOpeningContentTypes: [.plainText]), didPickDocumentsAt: [external, external])
+        check(list.tableView.numberOfRows(inSection: 0) == 2 && library.items().count == 2, "picker import nhiều file kể cả trùng tên")
+        let swipe = list.tableView(list.tableView, trailingSwipeActionsConfigurationForRowAt: IndexPath(row: 0, section: 0))!.actions[0]
+        var deleted = false
+        swipe.handler(swipe, UIView()) { deleted = $0 }
+        check(deleted && library.items().count == 1 && list.tableView.numberOfRows(inSection: 0) == 1, "swipe xoá và reload")
+        let navigation = UINavigationController()
+        let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
+        coordinator.start()
+        check(navigation.viewControllers.first is FileListViewController, "coordinator start bằng file list")
     }
 
     private static func check(_ condition: Bool, _ message: String) {
