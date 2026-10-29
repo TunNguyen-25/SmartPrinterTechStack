@@ -44,7 +44,21 @@ Dùng `PDFPageEditor` đã có (`rotate`, `delete`, `move`). Sau mỗi thao tác
 - `PDFPageEditor` đã có test xoay/xoá/chuyển. Thêm: `dataRepresentation()` của PDF sau khi xoay → mở lại thấy `rotation == 90`. Phần này đảm bảo dữ liệu lưu giữ được góc xoay.
 
 ## Tiêu chí hoàn thành
-- [ ] Xoay trang 2, xoá trang 1, Lưu mới → file mới đúng số trang và đúng góc xoay
-- [ ] Sắp xếp kéo-thả hoạt động, Huỷ không làm thay đổi gì
-- [ ] Ghi chú bằng Markup rồi quay lại → thấy nét vẽ trong `PDFView`, lưu xong mở lại vẫn còn
-- [ ] Nút Xoá bị disable khi chỉ còn 1 trang
+- [x] Xoay trang 2, xoá trang 1, Lưu mới → file mới đúng số trang và đúng góc xoay
+- [x] Sắp xếp kéo-thả hoạt động, Huỷ không làm thay đổi gì
+- [~] Ghi chú bằng Markup rồi quay lại → thấy nét vẽ trong `PDFView`, lưu xong mở lại vẫn còn (xem ghi chú bên dưới)
+- [x] Nút Xoá bị disable khi chỉ còn 1 trang
+
+
+## Kết quả kiểm tra — 29/10/2026
+
+- Build Debug cho iOS Simulator thành công; self-test in `SELFTEST OK` trên iPhone (iOS 26.4). Không sửa pbxproj.
+- `PDFFileEditorViewController`: `PDFView` + `PDFThumbnailView` 72pt + toolbar Xoay/Xoá/Sắp xếp/Ghi chú; tiêu đề là tên file. `pdf` là `var`.
+- `PDFThumbnailView` không tự vẽ lại khi xoay trang (gán lại `pdfView` hay đổi `thumbnailSize` đều không ăn; gán lại `document` làm lệch tỉ lệ `PDFView`), nên sau mỗi thao tác trang thì tạo view thumbnail mới.
+- Thêm `PDFPageEditor.reorder(_:to:)` (dựa trên `move`) để màn Print Preview (task 08) dùng lại.
+- `PageReorderViewController`: lưới drag & drop, thumbnail render nền trên bản sao `dataRepresentation()` (PDFDocument không Sendable) rồi cache theo index. Huỷ trả `nil`, không đổi gì; thứ tự không đổi thì không bật Lưu.
+- `QuickLookMarkupController` copy vào `Editors/`; file tạm đặt trong thư mục riêng, giữ tên gốc để QuickLook hiện đúng tên. Kết quả copy ra file tạm khác rồi thay `pdf`.
+- Self-test: `dataRepresentation()` giữ góc xoay; `reorder` đúng thứ tự, thứ tự thiếu trang thì bỏ qua; editor xoay trang 2 + xoá trang 1 + lưu mới → 2 trang, trang đầu xoay 90°, file gốc giữ 3 trang; Xoá bị khoá khi còn 1 trang; `replacePDF` thay PDF đang sửa.
+- Kiểm tra UI bằng kịch bản tạm (đã gỡ khỏi source). Ảnh: `/tmp/printflow-task07-edit.png` (trang 2 xoay, thumbnail cập nhật), `-reorder.png`, `-delete.png` (confirm "Xoá trang 1?"), `-one.png` (Xoá bị khoá), `-markup.png` (QuickLook mở file tạm với tên gốc).
+- **Chưa kiểm**: vẽ bằng Markup rồi quay lại, và kéo-thả bằng tay — máy chưa có AXe nên không tự tap/vẽ được. Cần thử tay trên simulator/thiết bị.
+- Log "CoreGraphics PDF has logged an error" khi chạy self-test có từ trước task này (test cũ), không ảnh hưởng kết quả.

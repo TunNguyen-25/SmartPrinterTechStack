@@ -66,6 +66,15 @@ enum SelfTest {
         check(textPDF.page(at: pageCount - 1) == first, "chuyển trang")
         editor.delete(textPDF, pageAt: 0)
         check(textPDF.pageCount == pageCount - 1, "xoá trang")
+        editor.rotate(textPDF, pageAt: 0)
+        let reopened = PDFDocument(data: textPDF.dataRepresentation()!)
+        check(reopened?.page(at: 0)?.rotation == 90, "dataRepresentation giữ góc xoay")
+        let threePages = converter.pdf(from: [image, image, image], pageSize: a4)
+        editor.rotate(threePages, pageAt: 2, by: 180)
+        editor.reorder(threePages, to: [2, 0, 1])
+        check(threePages.pageCount == 3 && threePages.page(at: 0)?.rotation == 180, "sắp xếp theo thứ tự mới")
+        editor.reorder(threePages, to: [0, 1])
+        check(threePages.page(at: 0)?.rotation == 180, "thứ tự thiếu trang thì bỏ qua")
 
     }
 
@@ -147,6 +156,25 @@ enum SelfTest {
         check(saved?.url.lastPathComponent == "anh (1).jpg" && CGImageSourceGetType(rotated) as String? == UTType.jpeg.identifier,
               "lưu mới ảnh xoay vẫn là JPEG")
         check(rotatedImage.width == 20 && rotatedImage.height == 40, "file mới đã xoay")
+        let pdfURL3 = root.appendingPathComponent("ba-trang.pdf")
+        try PDFConverter().pdf(from: [image, image, image], pageSize: PrintSettings().pageSize).dataRepresentation()!.write(to: pdfURL3)
+        let pdfEditor = try container.makeEditor(for: SourceDocument(url: pdfURL3)!, onSaved: { saved = $0 }) as! PDFFileEditorViewController
+        pdfEditor.loadViewIfNeeded()
+        check(pdfEditor.title == "ba-trang.pdf" && pdfEditor.toolbarItems?.filter { $0.image != nil }.count == 4, "editor PDF có tên file và 4 nút")
+        pdfEditor.rotatePage(at: 1)
+        pdfEditor.deletePage(at: 0)
+        check(pdfEditor.navigationItem.rightBarButtonItem?.isEnabled == true, "sửa trang thì bật Lưu")
+        try pdfEditor.onSave(pdfEditor.makeData(), .newCopy)
+        let savedPDF = PDFDocument(url: saved!.url)
+        check(saved?.url.lastPathComponent == "ba-trang (1).pdf" && savedPDF?.pageCount == 2 && savedPDF?.page(at: 0)?.rotation == 90,
+              "lưu mới PDF đúng số trang và góc xoay")
+        check(PDFDocument(url: pdfURL3)?.pageCount == 3, "lưu mới giữ PDF gốc")
+        check(pdfEditor.deleteItem?.isEnabled == true, "còn 2 trang thì cho xoá")
+        pdfEditor.deletePage(at: 0)
+        check(pdfEditor.deleteItem?.isEnabled == false, "còn 1 trang thì khoá Xoá")
+        pdfEditor.replacePDF(with: pdfURL3)
+        check(pdfEditor.pdf.pageCount == 3 && pdfEditor.pdfView.document === pdfEditor.pdf && pdfEditor.deleteItem?.isEnabled == true,
+              "Markup trả về thì thay PDF đang sửa")
         let navigation = UINavigationController()
         let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
         coordinator.start()

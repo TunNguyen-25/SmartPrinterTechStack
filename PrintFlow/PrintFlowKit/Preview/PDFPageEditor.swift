@@ -22,5 +22,15 @@ public final class PDFPageEditor {
         pdf.insert(page, at: destination)
     }
 
+    /// `order[i]` = index cũ của trang sẽ nằm ở vị trí i.
+    public func reorder(_ pdf: PDFDocument, to order: [Int]) {
+        let pages = order.compactMap(pdf.page(at:))
+        guard pages.count == pdf.pageCount else { return }
+        // Đưa lần lượt từng trang về vị trí i; các trang chưa xếp luôn nằm ở chỉ số >= i.
+        for (i, page) in pages.enumerated() {
+            move(pdf, from: pdf.index(for: page), to: i)
+        }
+    }
+
     // TODO: n-up (2/4 trang trên 1 tờ), thêm watermark, chèn trang trắng.
 }

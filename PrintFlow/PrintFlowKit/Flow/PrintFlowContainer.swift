@@ -41,7 +41,7 @@ public final class PrintFlowContainer {
         switch document.kind {
         case .pdf:
             guard let pdf = PDFDocument(url: document.url), !pdf.isLocked, pdf.pageCount > 0 else { throw PrintFlowError.unreadable(document.url) }
-            return PDFFileEditorViewController(pdf: pdf, pageEditor: pageEditor, onSave: onSave)
+            return PDFFileEditorViewController(pdf: pdf, document: document, pageEditor: pageEditor, onSave: onSave)
         case .image:
             guard let image = UIImage(contentsOfFile: document.url.path) else { throw PrintFlowError.unreadable(document.url) }
             return ImageFileEditorViewController(image: image, document: document, imageEditing: imageEditing, onSave: onSave)
