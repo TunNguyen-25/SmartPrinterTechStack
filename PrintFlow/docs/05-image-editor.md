@@ -52,8 +52,18 @@ public func adjust(_ image: UIImage, brightness: Float, contrast: Float) -> UIIm
 - `adjust(brightness: 0, contrast: 1)` giữ nguyên kích thước
 
 ## Tiêu chí hoàn thành
-- [ ] Mở `anh.jpg` → xoay → lưu mới → file mới đã xoay và vẫn là JPEG
+- [x] Mở `anh.jpg` → xoay → lưu mới → file mới đã xoay và vẫn là JPEG
 - [ ] Crop hoạt động với ảnh ngang lẫn ảnh dọc, khung crop không vượt ra ngoài ảnh
 - [ ] Kéo slider mượt (không giật trên simulator)
-- [ ] Nút Lưu bị disable cho đến khi có thay đổi
-- [ ] Self-test pass
+- [x] Nút Lưu bị disable cho đến khi có thay đổi
+- [x] Self-test pass
+
+
+## Kết quả kiểm tra — 29/10/2026
+
+- Build Debug và Release cho iOS Simulator thành công; self-test in `SELFTEST OK` trên iPhone 17 Pro (iOS 26.4).
+- `ImageEditingService` thêm `flipHorizontal`, `crop`, `adjust`, `upright` (chuẩn hoá orientation, `encode` dùng chung) và `downsampled` (preview slider ≤ 1200px). Các hàm vẽ giữ `image.scale` để file lưu không bị phình pixel theo scale màn hình (sửa luôn `rotateRight`).
+- Self-test: lật 2 lần giữ pixel (0,0) trên ảnh 2×1; crop 40×20 → 20×20; crop vượt biên bị giới hạn; adjust giữ kích thước; ảnh camera `.right` được chuẩn hoá; mở `anh.jpg` → xoay → lưu mới ra `anh (1).jpg`, vẫn là JPEG và đã xoay.
+- `ImageCropViewController` mới: khung kéo 4 góc / di chuyển, luôn nằm trong vùng ảnh aspect-fit, giữ vùng chọn khi xoay máy. Present toàn màn hình từ editor (cùng kiểu với action sheet Lưu), không đi qua coordinator.
+- Nút Lưu bật khi có thay đổi, kể cả khi đang kéo slider; "Gốc" đưa về ảnh lúc mở và tắt Lưu.
+- Kiểm tra UI bằng kịch bản tạm trên simulator (đã gỡ khỏi source): `/tmp/printflow-task05-open.png`, `-rotate.png`, `-adjust.png`, `-crop.png` (ảnh dọc), `-crop-png.png`, `-adjust-png.png` (ảnh ngang). Chưa kéo tay khung crop / slider vì máy chưa có AXe.

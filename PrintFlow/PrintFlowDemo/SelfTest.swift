@@ -54,6 +54,7 @@ enum SelfTest {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 20)).image { _ in }
         check(converter.pdf(from: [image, image], pageSize: a4).pageCount == 2, "ảnh → PDF mỗi ảnh 1 trang")
         check(ImageEditingService().rotateRight(image).size == CGSize(width: 20, height: 40), "xoay ảnh")
+        checkImageEditing()
 
         let editor = PDFPageEditor()
         let pageCount = textPDF.pageCount
@@ -119,6 +120,19 @@ enum SelfTest {
             check(editor.navigationItem.rightBarButtonItem?.title == "Lưu" && editor.navigationItem.rightBarButtonItem?.isEnabled == false,
                   "editor ảnh/PDF khoá Lưu khi chưa sửa")
         }
+        let jpgURL = root.appendingPathComponent("anh.jpg")
+        try ImageEditingService.encode(image, as: .jpeg).write(to: jpgURL)
+        let imageEditor = try container.makeEditor(for: SourceDocument(url: jpgURL)!, onSaved: { saved = $0 }) as! ImageFileEditorViewController
+        imageEditor.loadViewIfNeeded()
+        check(imageEditor.toolbarItems?.filter { $0.image != nil }.count == 6, "editor ảnh có 6 nút công cụ")
+        imageEditor.apply(ImageEditingService().rotateRight)
+        check(imageEditor.navigationItem.rightBarButtonItem?.isEnabled == true, "xoay xong thì bật Lưu")
+        try imageEditor.onSave(imageEditor.makeData(), .newCopy)
+        let rotated = CGImageSourceCreateWithData(try Data(contentsOf: saved!.url) as CFData, nil)!
+        let rotatedImage = CGImageSourceCreateImageAtIndex(rotated, 0, nil)!
+        check(saved?.url.lastPathComponent == "anh (1).jpg" && CGImageSourceGetType(rotated) as String? == UTType.jpeg.identifier,
+              "lưu mới ảnh xoay vẫn là JPEG")
+        check(rotatedImage.width == 20 && rotatedImage.height == 40, "file mới đã xoay")
         let navigation = UINavigationController()
         let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
         coordinator.start()
@@ -140,6 +154,44 @@ enum SelfTest {
     }
 
     #endif
+
+    private static func checkImageEditing() {
+        let service = ImageEditingService()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let twoColors = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 1), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+            UIColor.blue.setFill()
+            context.fill(CGRect(x: 1, y: 0, width: 1, height: 1))
+        }
+        /// RGBA của pixel trên-trái.
+        func firstPixel(_ image: UIImage) -> [UInt8] {
+            var pixel = [UInt8](repeating: 0, count: 4)
+            let cgImage = image.cgImage!
+            let context = CGContext(data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                    space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            // Vẽ cả ảnh sao cho pixel (0,0) phía trên rơi vào ô 1×1.
+            context.draw(cgImage, in: CGRect(x: 0, y: 1 - cgImage.height, width: cgImage.width, height: cgImage.height))
+            return pixel
+        }
+        let flipped = service.flipHorizontal(twoColors)
+        check(firstPixel(flipped)[2] > 200 && firstPixel(flipped)[0] < 50, "lật ngang đổi góc trái sang xanh")
+        check(firstPixel(service.flipHorizontal(flipped)) == firstPixel(twoColors), "lật 2 lần về như cũ")
+        check(flipped.cgImage?.width == 2, "lật giữ số pixel")
+
+        let wide = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 20), format: format).image { _ in }
+        let cropped = service.crop(wide, to: CGRect(x: 0, y: 0, width: 0.5, height: 1))
+        check(cropped.size == CGSize(width: 20, height: 20), "crop nửa trái ảnh 40×20 → 20×20")
+        check(service.crop(wide, to: CGRect(x: 0.8, y: 0.5, width: 0.5, height: 1)).size == CGSize(width: 8, height: 10), "crop không vượt ra ngoài ảnh")
+        check(service.adjust(wide, brightness: 0, contrast: 1).size == wide.size, "chỉnh sáng/tương phản giữ kích thước")
+        check(service.rotateRight(wide).cgImage?.width == 20, "xoay giữ scale, không phình pixel")
+        let big = UIGraphicsImageRenderer(size: CGSize(width: 3000, height: 1500), format: format).image { _ in }
+        check(service.downsampled(big).size == CGSize(width: 1200, height: 600), "preview slider downsample ≤ 1200px")
+        let camera = UIImage(cgImage: wide.cgImage!, scale: 1, orientation: .right)
+        let upright = ImageEditingService.upright(camera)
+        check(upright.imageOrientation == .up && upright.cgImage?.width == 20 && upright.cgImage?.height == 40, "chuẩn hoá orientation ảnh camera")
+    }
 
     private static func checkLibrary() throws {
         let files = FileManager.default
