@@ -1,20 +1,22 @@
 import UIKit
-import PDFKit
+import UniformTypeIdentifiers
 
-/// Editor ảnh: crop, xoay, filter. Kết quả ảnh → PDF theo khổ giấy mặc định.
+/// Editor ảnh: lưu theo phần mở rộng gốc.
+@MainActor
 public final class ImageFileEditorViewController: UIViewController {
     private var image: UIImage
+    private let document: SourceDocument
     private let imageEditing: ImageEditingService
-    private let converter: PDFConverter
-    private let settings: PrintSettings
-    private let onFinish: (PDFDocument) -> Void
+    let onSave: EditorSaveHandler
+    private var hasChanges = false {
+        didSet { navigationItem.rightBarButtonItem?.isEnabled = hasChanges }
+    }
 
-    init(image: UIImage, imageEditing: ImageEditingService, converter: PDFConverter, settings: PrintSettings, onFinish: @escaping (PDFDocument) -> Void) {
+    init(image: UIImage, document: SourceDocument, imageEditing: ImageEditingService, onSave: @escaping EditorSaveHandler) {
         self.image = image
+        self.document = document
         self.imageEditing = imageEditing
-        self.converter = converter
-        self.settings = settings
-        self.onFinish = onFinish
+        self.onSave = onSave
         super.init(nibName: nil, bundle: nil)
         title = "Sửa ảnh"
     }
@@ -23,11 +25,27 @@ public final class ImageFileEditorViewController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Tiếp", primaryAction: UIAction { [weak self] _ in self?.finish() })
-        // TODO: UI — preview ảnh, toolbar xoay/đen trắng gọi imageEditing rồi gán lại `image`.
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Lưu", primaryAction: UIAction { [weak self] _ in self?.save() })
+        navigationItem.rightBarButtonItem?.isEnabled = hasChanges
+        // TODO: UI — preview ảnh, xoay/đen trắng qua imageEditing, đặt `hasChanges = true`.
+        // TODO: Hỏi bỏ thay đổi khi bấm Back mà chưa lưu.
     }
 
-    private func finish() {
-        onFinish(converter.pdf(from: [image], pageSize: settings.pageSize))
+    private func save() {
+        SaveOptions.present(from: self, barButtonItem: navigationItem.rightBarButtonItem) { [weak self] mode in
+            guard let self else { return }
+            do {
+                try self.onSave(self.makeData(), mode)
+            } catch {
+                let alert = UIAlertController(title: "Không lưu được file", message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func makeData() throws -> Data {
+        guard let type = UTType(filenameExtension: document.url.pathExtension) else { throw PrintFlowError.cannotEncode }
+        return try ImageEditingService.encode(image, as: type)
     }
 }

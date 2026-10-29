@@ -1,19 +1,17 @@
 import UIKit
-import PDFKit
 
-/// Editor TXT: sửa nội dung, cỡ chữ, lề. Kết quả text → PDF theo khổ giấy mặc định.
+/// Editor TXT: sửa nội dung và lưu UTF-8.
+@MainActor
 public final class TextFileEditorViewController: UIViewController {
     private var text: String
-    private var style = TextStyle()
-    private let converter: PDFConverter
-    private let settings: PrintSettings
-    private let onFinish: (PDFDocument) -> Void
+    let onSave: EditorSaveHandler
+    private var hasChanges = false {
+        didSet { navigationItem.rightBarButtonItem?.isEnabled = hasChanges }
+    }
 
-    init(text: String, converter: PDFConverter, settings: PrintSettings, onFinish: @escaping (PDFDocument) -> Void) {
+    init(text: String, onSave: @escaping EditorSaveHandler) {
         self.text = text
-        self.converter = converter
-        self.settings = settings
-        self.onFinish = onFinish
+        self.onSave = onSave
         super.init(nibName: nil, bundle: nil)
         title = "Sửa văn bản"
     }
@@ -22,11 +20,26 @@ public final class TextFileEditorViewController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Tiếp", primaryAction: UIAction { [weak self] _ in self?.finish() })
-        // TODO: UI — UITextView bind vào `text`, stepper cỡ chữ/lề bind vào `style`.
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Lưu", primaryAction: UIAction { [weak self] _ in self?.save() })
+        navigationItem.rightBarButtonItem?.isEnabled = hasChanges
+        // TODO: UI — UITextView cập nhật `text` và đặt `hasChanges = true`.
+        // TODO: Hỏi bỏ thay đổi khi bấm Back mà chưa lưu.
     }
 
-    private func finish() {
-        onFinish(converter.pdf(from: text, style: style, pageSize: settings.pageSize))
+    private func save() {
+        SaveOptions.present(from: self, barButtonItem: navigationItem.rightBarButtonItem) { [weak self] mode in
+            guard let self else { return }
+            do {
+                try self.onSave(self.makeData(), mode)
+            } catch {
+                let alert = UIAlertController(title: "Không lưu được file", message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func makeData() throws -> Data {
+        Data(text.utf8)
     }
 }

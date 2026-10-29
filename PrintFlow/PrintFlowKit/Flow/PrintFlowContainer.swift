@@ -33,28 +33,27 @@ public final class PrintFlowContainer {
         FileListViewController(library: library, onEdit: onEdit, onPrint: onPrint)
     }
 
-    /// Mỗi loại file một editor; tất cả kết thúc bằng PDF.
-    func makeEditor(for document: SourceDocument, onFinish: @escaping (PDFDocument) -> Void) throws -> UIViewController {
+    /// Mỗi loại file một editor; ghi file xong mới báo thành công.
+    func makeEditor(for document: SourceDocument, onSaved: @escaping (SourceDocument) -> Void) throws -> UIViewController {
+        let onSave: EditorSaveHandler = { data, mode in
+            onSaved(try self.library.save(data, for: document, mode: mode))
+        }
         switch document.kind {
         case .pdf:
             guard let pdf = PDFDocument(url: document.url), !pdf.isLocked, pdf.pageCount > 0 else { throw PrintFlowError.unreadable(document.url) }
-            return PDFFileEditorViewController(pdf: pdf, pageEditor: pageEditor, onFinish: onFinish)
+            return PDFFileEditorViewController(pdf: pdf, pageEditor: pageEditor, onSave: onSave)
         case .image:
             guard let image = UIImage(contentsOfFile: document.url.path) else { throw PrintFlowError.unreadable(document.url) }
-            return ImageFileEditorViewController(image: image, imageEditing: imageEditing, converter: converter, settings: defaultSettings, onFinish: onFinish)
+            return ImageFileEditorViewController(image: image, document: document, imageEditing: imageEditing, onSave: onSave)
         case .text:
             let text = try String(contentsOf: document.url, encoding: .utf8)
-            return TextFileEditorViewController(text: text, converter: converter, settings: defaultSettings, onFinish: onFinish)
+            return TextFileEditorViewController(text: text, onSave: onSave)
         }
-    }
-
-    func makePreview(for pdf: PDFDocument, jobName: String) -> UIViewController {
-        PrintPreviewViewController(pdf: pdf, settings: defaultSettings, pageEditor: pageEditor, printService: printService, jobName: jobName)
     }
 
     func makePreview(for documents: [SourceDocument]) throws -> UIViewController {
         let pdf = try converter.pdf(from: documents, settings: defaultSettings)
         let jobName = documents.count == 1 ? documents[0].name : "\(documents.count) tài liệu"
-        return makePreview(for: pdf, jobName: jobName)
+        return PrintPreviewViewController(pdf: pdf, settings: defaultSettings, pageEditor: pageEditor, printService: printService, jobName: jobName)
     }
 }

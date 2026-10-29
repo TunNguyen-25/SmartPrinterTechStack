@@ -1,7 +1,6 @@
 import UIKit
-import PDFKit
 
-/// Điều hướng: File → Editor theo loại → Print Preview chung → In.
+/// Điều hướng: editor lưu rồi về danh sách; danh sách mở Preview để in.
 @MainActor
 public final class PrintFlowCoordinator {
     private let container: PrintFlowContainer
@@ -14,9 +13,9 @@ public final class PrintFlowCoordinator {
 
     public func open(_ document: SourceDocument) {
         do {
-            let editor = try container.makeEditor(for: document) { [weak self] pdf in
-                self?.showPreview(pdf, jobName: document.name)
-            }
+            let editor = try container.makeEditor(for: document, onSaved: { [weak self] _ in
+                self?.navigationController?.popViewController(animated: true)
+            })
             navigationController?.pushViewController(editor, animated: true)
         } catch {
             let alert = UIAlertController(title: "Không mở được file", message: error.localizedDescription, preferredStyle: .alert)
@@ -57,9 +56,5 @@ public final class PrintFlowCoordinator {
                 navigationController.present(alert, animated: true)
             }
         }
-    }
-
-    private func showPreview(_ pdf: PDFDocument, jobName: String) {
-        navigationController?.pushViewController(container.makePreview(for: pdf, jobName: jobName), animated: true)
     }
 }

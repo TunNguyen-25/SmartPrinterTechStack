@@ -70,8 +70,18 @@ Phần self-test đang gọi trực tiếp `PDFConverter` vẫn giữ. Cập nh�
 - Luồng lưu: `FileLibrary` tạm + `makeEditor` với file TXT → gọi trực tiếp closure `onSave` (không qua UI) với `.newCopy` → library có 2 file.
 
 ## Tiêu chí hoàn thành
-- [ ] 3 editor đều có nút Lưu và action sheet 2 lựa chọn. Nút Lưu bị disable khi chưa sửa.
-- [ ] Lưu đè: file gốc đổi, số file không đổi. Lưu mới: xuất hiện `tên (1).ext`, file gốc giữ nguyên.
-- [ ] Sau khi lưu thì tự quay về danh sách và thấy ngay thay đổi (ngày sửa, file mới)
-- [ ] Editor không còn import hay dùng `PDFConverter`
-- [ ] Self-test pass
+- [x] 3 editor đều có nút Lưu và action sheet 2 lựa chọn. Nút Lưu bị disable khi chưa sửa.
+- [x] Lưu đè: file gốc đổi, số file không đổi. Lưu mới: xuất hiện `tên (1).ext`, file gốc giữ nguyên.
+- [x] Sau khi lưu thì tự quay về danh sách và thấy ngay thay đổi (ngày sửa, file mới)
+- [x] Editor không còn import hay dùng `PDFConverter`
+- [x] Self-test pass
+
+
+## Kết quả kiểm tra — 29/10/2026
+
+- Build Debug và Release cho iOS Simulator đều thành công; giữ deployment target iOS 15.0, Swift 6, không sửa pbxproj.
+- Self-test in `SELFTEST OK` trên iPhone 17 Pro và iPad Pro 11-inch (iOS 26.4). Kiểm tra PNG/JPEG 40×20 đúng UTType, định dạng không encode được báo `cannotEncode`, callback lưu bản sao/lưu đè, lỗi ghi không gọi `onSaved`, coordinator pop về danh sách và list reload.
+- Cả ba editor có nút Lưu bị disable khi chưa sửa; UI chỉnh sửa ở task 05–07 sẽ đặt `hasChanges = true`. Editor không còn dùng converter/settings và không mở Preview.
+- Kiểm tra hiển thị editor/action sheet bằng kịch bản tạm trên simulator, đã gỡ kịch bản khỏi source. Không thao tác tap tự động vì máy chưa có AXe. Ảnh: `/tmp/printflow-task04-editor-iphone.png`, `/tmp/printflow-task04-final-ui-0.png`, `/tmp/printflow-task04-save-ipad.png`.
+- HEIC dùng đúng ImageIO destination; nếu không encode được sẽ báo lỗi và giữ màn editor. Chưa kiểm tra encode HEIC trên thiết bị thật.
+- Đã thêm TODO hỏi bỏ thay đổi khi Back. Không thêm UI chỉnh sửa hoặc undo/redo trong task này.

@@ -1,7 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Loại file quyết định mở editor nào. Sau editor, mọi loại đều thành PDF.
+/// Loại file quyết định mở editor; chỉ chuyển sang PDF khi xem trước in.
 public enum FileKind: Sendable {
     case pdf, image, text
 
@@ -29,12 +29,14 @@ public struct SourceDocument: Sendable {
 }
 
 public enum PrintFlowError: LocalizedError {
+    case cannotEncode
     case empty
     case unreadable(URL)
     case unsupported(URL)
 
     public var errorDescription: String? {
         switch self {
+        case .cannotEncode: "Không mã hoá được tài liệu theo định dạng gốc."
         case .empty: "Chưa chọn tài liệu để in."
         case .unreadable(let url): "Không đọc được file \(url.lastPathComponent)."
         case .unsupported(let url): "Chưa hỗ trợ file \(url.lastPathComponent)."

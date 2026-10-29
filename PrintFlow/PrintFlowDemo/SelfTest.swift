@@ -1,6 +1,12 @@
 import UIKit
 import PDFKit
+#if DEBUG
+@testable import PrintFlowKit
+#else
 import PrintFlowKit
+#endif
+import ImageIO
+import UniformTypeIdentifiers
 
 /// Kiểm tra converter + page editor rồi thoát:
 /// xcrun simctl launch --console booted tuandev.PrintFlowDemo -selftest
@@ -28,6 +34,9 @@ enum SelfTest {
             SampleDocuments.seedIfEmpty(sampleLibrary)
             check(sampleLibrary.items().count == 4, "không seed lại khi đã có file")
             check(try Data(contentsOf: sample.url) == edited, "seed không ghi đè file đã sửa")
+            #if DEBUG
+            try checkEditorSave()
+            #endif
             try checkLibrary()
             try checkFileList()
             try checkPrintPipeline()
@@ -58,6 +67,79 @@ enum SelfTest {
         check(textPDF.pageCount == pageCount - 1, "xoá trang")
 
     }
+
+    #if DEBUG
+    private static func checkEditorSave() throws {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 20), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 40, height: 20))
+        }
+        for type in [UTType.png, .jpeg] {
+            let data = try ImageEditingService.encode(image, as: type)
+            let source = CGImageSourceCreateWithData(data as CFData, nil)!
+            let decoded = CGImageSourceCreateImageAtIndex(source, 0, nil)!
+            check(decoded.width == 40 && decoded.height == 20, "encode giữ kích thước pixel")
+            check(CGImageSourceGetType(source) as String? == type.identifier, "encode đúng định dạng gốc")
+        }
+        do {
+            _ = try ImageEditingService.encode(image, as: .plainText)
+            check(false, "định dạng không encode được phải báo lỗi")
+        } catch PrintFlowError.cannotEncode {}
+
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("selftest-editor-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let library = FileLibrary(folder: root)
+        let url = root.appendingPathComponent("goc.txt")
+        let initial = Data("Nội dung gốc".utf8)
+        let edited = Data("Nội dung mới: tiếng Việt".utf8)
+        try initial.write(to: url)
+        let document = SourceDocument(url: url)!
+        let container = PrintFlowContainer(library: library)
+        var saved: SourceDocument?
+        let editor = try container.makeEditor(for: document, onSaved: { saved = $0 }) as! TextFileEditorViewController
+        editor.loadViewIfNeeded()
+        check(editor.navigationItem.rightBarButtonItem?.title == "Lưu", "editor có nút Lưu")
+        check(editor.navigationItem.rightBarButtonItem?.isEnabled == false, "chưa sửa thì không lưu")
+        try editor.onSave(edited, .newCopy)
+        check(library.items().count == 2 && saved?.url.lastPathComponent == "goc (1).txt", "callback lưu bản sao qua container")
+        check(try Data(contentsOf: url) == initial, "lưu bản sao giữ gốc")
+        check(try Data(contentsOf: saved!.url) == edited, "bản sao giữ UTF-8")
+        try editor.onSave(edited, .overwrite)
+        check(saved?.url == url && library.items().count == 2, "callback lưu đè giữ URL và số file")
+        check(try Data(contentsOf: url) == edited, "callback lưu đè cập nhật gốc")
+        let pngURL = root.appendingPathComponent("anh.png")
+        try ImageEditingService.encode(image, as: .png).write(to: pngURL)
+        let pdfURL = root.appendingPathComponent("trang.pdf")
+        try PDFConverter().pdf(from: [image], pageSize: PrintSettings().pageSize).dataRepresentation()!.write(to: pdfURL)
+        for url in [pngURL, pdfURL] {
+            let editor = try container.makeEditor(for: SourceDocument(url: url)!, onSaved: { _ in })
+            editor.loadViewIfNeeded()
+            check(editor.navigationItem.rightBarButtonItem?.title == "Lưu" && editor.navigationItem.rightBarButtonItem?.isEnabled == false,
+                  "editor ảnh/PDF khoá Lưu khi chưa sửa")
+        }
+        let navigation = UINavigationController()
+        let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
+        coordinator.start()
+        let list = navigation.topViewController as! FileListViewController
+        coordinator.open(document)
+        let opened = navigation.topViewController as! TextFileEditorViewController
+        try opened.onSave(edited, .newCopy)
+        check(navigation.topViewController === list, "lưu xong quay về danh sách, không mở Preview")
+        list.viewWillAppear(false)
+        check(list.tableView.numberOfRows(inSection: 0) == library.items().count, "danh sách reload thấy file mới")
+        saved = nil
+        try FileManager.default.removeItem(at: root)
+        do {
+            try editor.onSave(initial, .overwrite)
+            check(false, "lưu lỗi phải throw")
+        } catch {
+            check(saved == nil, "không báo thành công khi ghi file lỗi")
+        }
+    }
+
+    #endif
 
     private static func checkLibrary() throws {
         let files = FileManager.default

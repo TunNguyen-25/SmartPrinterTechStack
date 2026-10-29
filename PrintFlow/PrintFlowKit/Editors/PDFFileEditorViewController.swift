@@ -1,16 +1,20 @@
 import UIKit
 import PDFKit
 
-/// Editor PDF: thao tác trang, markup (Quick Look / PencilKit / PaperKit — xem PDFEditorKit).
+/// Editor PDF: sửa trang và lưu PDF.
+@MainActor
 public final class PDFFileEditorViewController: UIViewController {
     private let pdf: PDFDocument
     private let pageEditor: PDFPageEditor
-    private let onFinish: (PDFDocument) -> Void
+    let onSave: EditorSaveHandler
+    private var hasChanges = false {
+        didSet { navigationItem.rightBarButtonItem?.isEnabled = hasChanges }
+    }
 
-    init(pdf: PDFDocument, pageEditor: PDFPageEditor, onFinish: @escaping (PDFDocument) -> Void) {
+    init(pdf: PDFDocument, pageEditor: PDFPageEditor, onSave: @escaping EditorSaveHandler) {
         self.pdf = pdf
         self.pageEditor = pageEditor
-        self.onFinish = onFinish
+        self.onSave = onSave
         super.init(nibName: nil, bundle: nil)
         title = "Sửa PDF"
     }
@@ -19,9 +23,27 @@ public final class PDFFileEditorViewController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Tiếp", primaryAction: UIAction { [weak self] _ in self?.finish() })
-        // TODO: UI — PDFView + thumbnail, nút xoay/xoá/sắp xếp gọi pageEditor, nút markup.
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Lưu", primaryAction: UIAction { [weak self] _ in self?.save() })
+        navigationItem.rightBarButtonItem?.isEnabled = hasChanges
+        // TODO: UI — PDFView + thumbnail, thao tác trang qua pageEditor, đặt `hasChanges = true`.
+        // TODO: Hỏi bỏ thay đổi khi bấm Back mà chưa lưu.
     }
 
-    private func finish() { onFinish(pdf) }
+    private func save() {
+        SaveOptions.present(from: self, barButtonItem: navigationItem.rightBarButtonItem) { [weak self] mode in
+            guard let self else { return }
+            do {
+                try self.onSave(self.makeData(), mode)
+            } catch {
+                let alert = UIAlertController(title: "Không lưu được file", message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                self.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func makeData() throws -> Data {
+        guard let data = pdf.dataRepresentation() else { throw PrintFlowError.cannotEncode }
+        return data
+    }
 }
