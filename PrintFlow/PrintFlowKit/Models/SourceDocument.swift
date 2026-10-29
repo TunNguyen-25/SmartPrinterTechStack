@@ -30,4 +30,5 @@ public struct SourceDocument: Sendable {
 
 public enum PrintFlowError: Error {
     case unreadable(URL)
+    case unsupported(URL)
 }

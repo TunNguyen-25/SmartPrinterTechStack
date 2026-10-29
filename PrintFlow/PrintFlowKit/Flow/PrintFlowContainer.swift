@@ -5,6 +5,7 @@ import PDFKit
 /// Muốn thay service (mock, SDK trả phí…) thì đổi ở đây, màn hình không biết.
 @MainActor
 public final class PrintFlowContainer {
+    public let library: FileLibrary
     public let converter: PDFConverter
     public let pageEditor: PDFPageEditor
     public let imageEditing: ImageEditingService
@@ -12,12 +13,14 @@ public final class PrintFlowContainer {
     public var defaultSettings: PrintSettings
 
     public init(
+        library: FileLibrary = FileLibrary.documents(),
         converter: PDFConverter = PDFConverter(),
         pageEditor: PDFPageEditor = PDFPageEditor(),
         imageEditing: ImageEditingService = ImageEditingService(),
         printService: PrintService = PrintService(),
         defaultSettings: PrintSettings = PrintSettings()
     ) {
+        self.library = library
         self.converter = converter
         self.pageEditor = pageEditor
         self.imageEditing = imageEditing

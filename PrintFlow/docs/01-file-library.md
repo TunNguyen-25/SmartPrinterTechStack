@@ -62,6 +62,6 @@ Dùng `FileLibrary(folder: temporaryDirectory/selftest-<UUID>)`:
 - `delete` → giảm số file
 
 ## Tiêu chí hoàn thành
-- [ ] `FileLibrary` đúng API ở trên, đều là `public`
-- [ ] Container có `library`, demo seed file mẫu vào `<Documents>/PrintFlow` ở lần chạy đầu
-- [ ] Self-test mới pass, các self-test cũ vẫn pass
+- [x] `FileLibrary` đúng API ở trên, đều là `public`
+- [x] Container có `library`, demo seed file mẫu vào `<Documents>/PrintFlow` ở lần chạy đầu
+- [x] Self-test mới pass, các self-test cũ vẫn pass

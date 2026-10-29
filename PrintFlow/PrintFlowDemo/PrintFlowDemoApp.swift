@@ -16,8 +16,10 @@ struct PrintFlowDemoApp: App {
 private struct RootView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UINavigationController {
         let navigation = UINavigationController()
-        let coordinator = PrintFlowCoordinator(container: PrintFlowContainer(), navigationController: navigation)
-        navigation.viewControllers = [HomeViewController(samples: SampleDocuments.make(), onPick: coordinator.open)]
+        let container = PrintFlowContainer()
+        SampleDocuments.seedIfEmpty(container.library)
+        let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
+        navigation.viewControllers = [HomeViewController(samples: container.library.items().map(\.document), onPick: coordinator.open)]
         return navigation
     }
 
