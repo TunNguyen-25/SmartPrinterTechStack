@@ -28,7 +28,16 @@ public struct SourceDocument: Sendable {
     public var name: String { url.deletingPathExtension().lastPathComponent }
 }
 
-public enum PrintFlowError: Error {
+public enum PrintFlowError: LocalizedError {
+    case empty
     case unreadable(URL)
     case unsupported(URL)
+
+    public var errorDescription: String? {
+        switch self {
+        case .empty: "Chưa chọn tài liệu để in."
+        case .unreadable(let url): "Không đọc được file \(url.lastPathComponent)."
+        case .unsupported(let url): "Chưa hỗ trợ file \(url.lastPathComponent)."
+        }
+    }
 }

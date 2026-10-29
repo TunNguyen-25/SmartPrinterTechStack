@@ -52,22 +52,9 @@ public final class PrintFlowContainer {
         PrintPreviewViewController(pdf: pdf, settings: defaultSettings, pageEditor: pageEditor, printService: printService, jobName: jobName)
     }
 
-    /// Tạm xem trước file đầu tiên; task 03 sẽ ghép toàn bộ danh sách.
-    func makePreview(for documents: [SourceDocument]) throws -> UIViewController? {
-        guard let document = documents.first else { return nil }
-        let pdf: PDFDocument
-        switch document.kind {
-        case .pdf:
-            guard let source = PDFDocument(url: document.url), !source.isLocked, source.pageCount > 0 else {
-                throw PrintFlowError.unreadable(document.url)
-            }
-            pdf = source
-        case .image:
-            guard let image = UIImage(contentsOfFile: document.url.path) else { throw PrintFlowError.unreadable(document.url) }
-            pdf = converter.pdf(from: [image], pageSize: defaultSettings.pageSize)
-        case .text:
-            pdf = converter.pdf(from: try String(contentsOf: document.url, encoding: .utf8), style: TextStyle(), pageSize: defaultSettings.pageSize)
-        }
-        return makePreview(for: pdf, jobName: document.name)
+    func makePreview(for documents: [SourceDocument]) throws -> UIViewController {
+        let pdf = try converter.pdf(from: documents, settings: defaultSettings)
+        let jobName = documents.count == 1 ? documents[0].name : "\(documents.count) tài liệu"
+        return makePreview(for: pdf, jobName: jobName)
     }
 }

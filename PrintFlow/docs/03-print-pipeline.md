@@ -51,3 +51,10 @@ func showPrintPreview(for documents: [SourceDocument])
 - [ ] Từ list (task 02), chọn nhiều file khác loại → Preview hiện đủ trang, đúng thứ tự chọn
 - [ ] Ảnh lớn (ví dụ 6000×4000) convert không tăng RAM quá mức. Kiểm tra bằng Xcode memory gauge, nên < 150MB.
 - [ ] Self-test pass
+
+## Kết quả kiểm tra — 29/10/2026
+
+- Build simulator thành công; toàn bộ self-test in `SELFTEST OK`. Đã thêm kiểm tra ghép TXT 200 dòng + PNG + PDF 2 trang, thứ tự/nội dung sau serialize, khổ PDF gốc, ảnh A4/ngang, danh sách rỗng, PDF hỏng/khoá/không có trang đọc được, ảnh hỏng và TXT lỗi/mất file.
+- Đã bấm trên iPhone 17 Pro simulator (iOS 26.4): chọn TXT → PNG 6000×4000 → PDF mở màn `3 tài liệu`; PDF hỏng hiện alert kèm đúng tên file.
+- `vmmap -summary` đo physical footprint trước conversion 32,0 MB (peak 32,2 MB), sau conversion 32,6 MB (peak 37,9 MB). Đây là số đo simulator; chưa đo bằng Xcode memory gauge trên thiết bị thật.
+- Preview hiện vẫn là màn khung; kiểm tra hiển thị từng trang trên UI cần task 08. Số trang và thứ tự đã được kiểm tra trên PDF thật trong self-test. Giữ overload Preview cũ vì editor còn gọi, chờ task 04.

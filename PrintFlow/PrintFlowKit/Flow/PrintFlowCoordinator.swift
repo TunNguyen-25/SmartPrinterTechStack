@@ -32,14 +32,30 @@ public final class PrintFlowCoordinator {
     }
 
     public func showPrintPreview(for documents: [SourceDocument]) {
-        do {
-            if let preview = try container.makePreview(for: documents) {
-                navigationController?.pushViewController(preview, animated: true)
+        guard let navigationController else { return }
+        let overlay = UIView(frame: navigationController.view.bounds)
+        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        overlay.backgroundColor = .systemBackground.withAlphaComponent(0.8)
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.center = CGPoint(x: overlay.bounds.midX, y: overlay.bounds.midY)
+        spinner.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleTopMargin, .flexibleBottomMargin]
+        spinner.accessibilityLabel = "Đang chuyển sang PDF"
+        overlay.addSubview(spinner)
+        navigationController.view.addSubview(overlay)
+        spinner.startAnimating()
+        // Nhường một vòng runloop để spinner kịp vẽ trước khi convert trên main.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { overlay.removeFromSuperview(); return }
+            do {
+                let preview = try self.container.makePreview(for: documents)
+                overlay.removeFromSuperview()
+                navigationController.pushViewController(preview, animated: true)
+            } catch {
+                overlay.removeFromSuperview()
+                let alert = UIAlertController(title: "Không chuyển được sang PDF", message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                navigationController.present(alert, animated: true)
             }
-        } catch {
-            let alert = UIAlertController(title: "Không chuyển được sang PDF", message: error.localizedDescription, preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            navigationController?.present(alert, animated: true)
         }
     }
 

@@ -30,6 +30,7 @@ enum SelfTest {
             check(try Data(contentsOf: sample.url) == edited, "seed không ghi đè file đã sửa")
             try checkLibrary()
             try checkFileList()
+            try checkPrintPipeline()
         } catch {
             check(false, "kho file: \(error)")
         }
@@ -181,6 +182,98 @@ enum SelfTest {
         let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
         coordinator.start()
         check(navigation.viewControllers.first is FileListViewController, "coordinator start bằng file list")
+    }
+
+    private static func checkPrintPipeline() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("selftest-pipeline-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let text = (1...200).map { "Pipeline dòng \($0)" }.joined(separator: "\n")
+        let textURL = root.appendingPathComponent("dau.txt")
+        let imageURL = root.appendingPathComponent("giua.png")
+        let pdfURL = root.appendingPathComponent("cuoi.pdf")
+        try Data(text.utf8).write(to: textURL)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 60, height: 40), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 60, height: 40))
+        }
+        try image.pngData()!.write(to: imageURL)
+        let originalSize = CGSize(width: 300, height: 400)
+        let pdfData = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: originalSize)).pdfData { context in
+            for label in ["PDF first", "PDF last"] {
+                context.beginPage()
+                (label as NSString).draw(at: CGPoint(x: 20, y: 20), withAttributes: [.font: UIFont.systemFont(ofSize: 12)])
+            }
+        }
+        try pdfData.write(to: pdfURL)
+        let documents = [textURL, imageURL, pdfURL].map { SourceDocument(url: $0)! }
+        let converter = PDFConverter()
+        let settings = PrintSettings()
+        let textPages = converter.pdf(from: text, style: TextStyle(), pageSize: settings.pageSize).pageCount
+        let merged = try converter.pdf(from: documents, settings: settings)
+        check(textPages > 1 && merged.pageCount == textPages + 3, "pipeline ghép đủ TXT dài + ảnh + PDF 2 trang")
+        check(merged.page(at: 0)?.string?.contains("Pipeline dòng 1") == true, "pipeline bắt đầu bằng TXT")
+        check(merged.page(at: textPages - 1)?.string?.contains("Pipeline dòng 200") == true, "pipeline giữ trang TXT cuối")
+        check(merged.page(at: textPages)?.bounds(for: .mediaBox).size == settings.pageSize, "pipeline ảnh đúng khổ A4")
+        check(merged.page(at: textPages + 1)?.string?.contains("PDF first") == true, "pipeline PDF theo sau ảnh")
+        check(merged.page(at: merged.pageCount - 1)?.bounds(for: .mediaBox).size == originalSize, "pipeline giữ khổ PDF gốc")
+        let reopened = PDFDocument(data: merged.dataRepresentation()!)!
+        check(reopened.page(at: reopened.pageCount - 1)?.string?.contains("PDF last") == true, "pipeline giữ nội dung sau khi nguồn được giải phóng")
+        var landscape = settings
+        landscape.isLandscape = true
+        let horizontal = try converter.pdf(from: [documents[1]], settings: landscape)
+        check(horizontal.page(at: 0)?.bounds(for: .mediaBox).size == CGSize(width: 842, height: 595), "pipeline ảnh khổ ngang")
+        let thumbnail = horizontal.page(at: 0)!.thumbnail(of: landscape.pageSize, for: .mediaBox)
+        check(thumbnail.size.width > thumbnail.size.height, "pipeline ảnh render được sau conversion")
+        do {
+            _ = try converter.pdf(from: [SourceDocument](), settings: settings)
+            check(false, "pipeline phải từ chối danh sách rỗng")
+        } catch PrintFlowError.empty {}
+        let brokenPDF = root.appendingPathComponent("hong.pdf")
+        let brokenImage = root.appendingPathComponent("hong.png")
+        let brokenText = root.appendingPathComponent("hong.txt")
+        try Data("abc".utf8).write(to: brokenPDF)
+        try Data("abc".utf8).write(to: brokenImage)
+        try Data([0xFF, 0xFE]).write(to: brokenText)
+        let lockedPDF = root.appendingPathComponent("khoa.pdf")
+        check(PDFDocument(data: pdfData)!.write(to: lockedPDF, withOptions: [.userPasswordOption: "secret", .ownerPasswordOption: "owner"]), "tạo PDF khoá")
+        let emptyPDF = root.appendingPathComponent("rong.pdf")
+        // PDFKit tự thêm trang trắng khi ghi tài liệu rỗng, nên tạo fixture PDF trực tiếp.
+        var emptyData = Data("%PDF-1.4\n".utf8)
+        var offsets: [Int] = []
+        for object in ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [] /Count 0 >>"] {
+            offsets.append(emptyData.count)
+            emptyData.append(Data("\(offsets.count) 0 obj\n\(object)\nendobj\n".utf8))
+        }
+        let xref = emptyData.count
+        let entries = offsets.map { String(format: "%010d 00000 n \n", $0) }.joined()
+        emptyData.append(Data("xref\n0 3\n0000000000 65535 f \n\(entries)trailer\n<< /Size 3 /Root 1 0 R >>\nstartxref\n\(xref)\n%%EOF\n".utf8))
+        try emptyData.write(to: emptyPDF)
+        check((PDFDocument(url: emptyPDF)?.pageCount ?? 0) == 0, "fixture PDF không chứa trang đọc được")
+        for url in [brokenPDF, brokenImage, brokenText, lockedPDF, emptyPDF, root.appendingPathComponent("mat.txt")] {
+            do {
+                _ = try converter.pdf(from: [documents[0], SourceDocument(url: url)!], settings: settings)
+                check(false, "pipeline phải từ chối \(url.lastPathComponent)")
+            } catch PrintFlowError.unreadable(let failedURL) {
+                check(failedURL == url, "pipeline báo đúng file lỗi")
+            }
+        }
+        let container = PrintFlowContainer(library: FileLibrary(folder: root), defaultSettings: landscape)
+        let navigation = UINavigationController(rootViewController: UIViewController())
+        let coordinator = PrintFlowCoordinator(container: container, navigationController: navigation)
+        for (selection, title) in [(documents, "3 tài liệu"), ([documents[1]], "giua")] {
+            let count = navigation.viewControllers.count
+            coordinator.showPrintPreview(for: selection)
+            check(navigation.view.subviews.last?.subviews.first is UIActivityIndicatorView, "pipeline hiện spinner trước khi convert")
+            let deadline = Date(timeIntervalSinceNow: 5)
+            while navigation.viewControllers.count == count && Date() < deadline {
+                RunLoop.main.run(mode: .default, before: deadline)
+            }
+            check(navigation.topViewController?.title == title, "Preview đặt tên đúng số file")
+            check(!navigation.view.subviews.contains { $0.subviews.first is UIActivityIndicatorView }, "pipeline ẩn spinner sau conversion")
+        }
     }
 
     private static func check(_ condition: Bool, _ message: String) {
