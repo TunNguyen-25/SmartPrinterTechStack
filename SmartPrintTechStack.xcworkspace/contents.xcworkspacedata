@@ -16,4 +16,7 @@
    <FileRef
       location = "group:DocumentScanner/DocumentScanner.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:PrintFlow/PrintFlow.xcodeproj">
+   </FileRef>
 </Workspace>
