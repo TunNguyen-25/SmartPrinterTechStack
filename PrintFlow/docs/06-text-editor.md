@@ -24,7 +24,17 @@ Sửa nội dung file `.txt` rồi Lưu. Task nhỏ nhất trong bộ.
 - File UTF-16 (ghi bằng `.utf16`) mở được qua `makeEditor`, không throw.
 
 ## Tiêu chí hoàn thành
-- [ ] Mở `mau.txt`, gõ thêm một dòng, Lưu đè → mở lại thấy dòng mới
-- [ ] Gõ ở cuối file dài không bị bàn phím che
-- [ ] Gõ rồi xoá về y như cũ → nút Lưu bị disable lại
-- [ ] Tiếng Việt có dấu lưu và đọc lại đúng
+- [x] Mở `mau.txt`, gõ thêm một dòng, Lưu đè → mở lại thấy dòng mới
+- [x] Gõ ở cuối file dài không bị bàn phím che
+- [x] Gõ rồi xoá về y như cũ → nút Lưu bị disable lại
+- [x] Tiếng Việt có dấu lưu và đọc lại đúng
+
+
+## Kết quả kiểm tra — 29/10/2026
+
+- Build Debug cho iOS Simulator thành công; self-test in `SELFTEST OK` trên iPhone (iOS 26.4).
+- `TextFileEditorViewController`: `UITextView` monospaced 15pt qua `UIFontMetrics`, bám safe area, đáy neo `keyboardLayoutGuide`; nút "Xong" ở `inputAccessoryView` (chỉ hiện khi bàn phím mở). `hasChanges` so với text lúc mở.
+- `makeEditor` đọc UTF-8 trước, không được thì `String(contentsOf:usedEncoding:)`, vẫn lỗi thì throw `unreadable`. Lưu luôn UTF-8 (có ghi chú trong code).
+- Self-test: mở file UTF-16 không throw; gõ thêm dòng có dấu → Lưu bật → lưu đè đọc lại bằng UTF-8 đúng nội dung; xoá về như cũ → Lưu tắt.
+- Kiểm tra UI bằng kịch bản tạm (đã gỡ khỏi source): file 80 dòng, gõ ở cuối, dòng cuối nằm trên bàn phím và nút "Xong". Ảnh: `/tmp/printflow-task06-keyboard.png`. Chưa gõ tay vì máy chưa có AXe.
+- Không làm hiển thị số dòng/ký tự (không bắt buộc).

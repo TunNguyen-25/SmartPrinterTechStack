@@ -46,7 +46,10 @@ public final class PrintFlowContainer {
             guard let image = UIImage(contentsOfFile: document.url.path) else { throw PrintFlowError.unreadable(document.url) }
             return ImageFileEditorViewController(image: image, document: document, imageEditing: imageEditing, onSave: onSave)
         case .text:
-            let text = try String(contentsOf: document.url, encoding: .utf8)
+            // Thử UTF-8 trước, không được thì để hệ thống đoán encoding (UTF-16 có BOM…).
+            var encoding = String.Encoding.utf8
+            guard let text = (try? String(contentsOf: document.url, encoding: .utf8))
+                ?? (try? String(contentsOf: document.url, usedEncoding: &encoding)) else { throw PrintFlowError.unreadable(document.url) }
             return TextFileEditorViewController(text: text, onSave: onSave)
         }
     }

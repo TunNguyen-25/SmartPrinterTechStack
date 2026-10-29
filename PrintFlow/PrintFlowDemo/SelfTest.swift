@@ -110,6 +110,20 @@ enum SelfTest {
         try editor.onSave(edited, .overwrite)
         check(saved?.url == url && library.items().count == 2, "callback lưu đè giữ URL và số file")
         check(try Data(contentsOf: url) == edited, "callback lưu đè cập nhật gốc")
+        let utf16URL = root.appendingPathComponent("utf16.txt")
+        try "Xin chào, tiếng Việt".write(to: utf16URL, atomically: true, encoding: .utf16)
+        let textEditor = try container.makeEditor(for: SourceDocument(url: utf16URL)!, onSaved: { saved = $0 }) as! TextFileEditorViewController
+        textEditor.loadViewIfNeeded()
+        check(textEditor.textView.text == "Xin chào, tiếng Việt", "mở được TXT UTF-16")
+        textEditor.textView.text += "\nDòng mới có dấu"
+        textEditor.textViewDidChange(textEditor.textView)
+        check(textEditor.navigationItem.rightBarButtonItem?.isEnabled == true, "gõ thêm thì bật Lưu")
+        try textEditor.onSave(textEditor.makeData(), .overwrite)
+        check(try String(contentsOf: utf16URL, encoding: .utf8) == "Xin chào, tiếng Việt\nDòng mới có dấu", "lưu TXT chuyển sang UTF-8, giữ dấu")
+        textEditor.textView.text = "Xin chào, tiếng Việt"
+        textEditor.textViewDidChange(textEditor.textView)
+        check(textEditor.navigationItem.rightBarButtonItem?.isEnabled == false, "xoá về như cũ thì tắt Lưu")
+        try FileManager.default.removeItem(at: utf16URL)
         let pngURL = root.appendingPathComponent("anh.png")
         try ImageEditingService.encode(image, as: .png).write(to: pngURL)
         let pdfURL = root.appendingPathComponent("trang.pdf")
