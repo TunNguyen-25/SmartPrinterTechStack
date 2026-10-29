@@ -57,6 +57,7 @@ public final class PrintFlowContainer {
     func makePreview(for documents: [SourceDocument]) throws -> UIViewController {
         let pdf = try converter.pdf(from: documents, settings: defaultSettings)
         let jobName = documents.count == 1 ? documents[0].name : "\(documents.count) tài liệu"
-        return PrintPreviewViewController(pdf: pdf, settings: defaultSettings, pageEditor: pageEditor, printService: printService, jobName: jobName)
+        return PrintPreviewViewController(pdf: pdf, documents: documents, settings: defaultSettings, converter: converter,
+                                          pageEditor: pageEditor, printService: printService, jobName: jobName)
     }
 }

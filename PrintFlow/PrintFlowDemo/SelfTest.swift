@@ -450,6 +450,25 @@ enum SelfTest {
             check(navigation.topViewController?.title == title, "Preview đặt tên đúng số file")
             check(!navigation.view.subviews.contains { $0.subviews.first is UIActivityIndicatorView }, "pipeline ẩn spinner sau conversion")
         }
+        #if DEBUG
+        let originals = try documents.map { try Data(contentsOf: $0.url) }
+        let preview = try PrintFlowContainer(library: FileLibrary(folder: root)).makePreview(for: documents) as! PrintPreviewViewController
+        preview.loadViewIfNeeded()
+        let total = preview.pdf.pageCount
+        preview.rotatePage(at: 0)
+        preview.deletePage(at: 1)
+        check(preview.hasPageEdits && preview.pdf.pageCount == total - 1 && preview.navigationItem.prompt == "\(total - 1) trang", "Preview xoá trang cập nhật số trang")
+        var letterLandscape = preview.settings
+        letterLandscape.paper = .letter
+        letterLandscape.isLandscape = true
+        preview.reconvert(with: letterLandscape)
+        // Ảnh nằm ngay trước 2 trang PDF gốc.
+        let imagePage = preview.pdf.page(at: preview.pdf.pageCount - 3)!.bounds(for: .mediaBox).size
+        check(imagePage == CGSize(width: 792, height: 612), "Preview convert lại ảnh theo Letter ngang")
+        check(preview.pdf.page(at: 0)?.bounds(for: .mediaBox).size == letterLandscape.pageSize, "Preview convert lại TXT theo khổ mới")
+        check(!preview.hasPageEdits && preview.pdf.page(at: 0)?.rotation == 0, "đổi khổ huỷ chỉnh sửa trang")
+        check(try documents.map { try Data(contentsOf: $0.url) } == originals, "Preview không ghi vào file thư viện")
+        #endif
     }
 
     private static func check(_ condition: Bool, _ message: String) {
